@@ -7,7 +7,7 @@ import type { z } from "zod";
 // ---------------------------------------------------------------------------
 
 /** Centralised model name — change here to switch globally. */
-const GEMINI_MODEL = "gemini-3.6-flash";
+const GEMINI_MODEL = "gemini-3.5-flash";
 
 // ---------------------------------------------------------------------------
 // Client singleton
