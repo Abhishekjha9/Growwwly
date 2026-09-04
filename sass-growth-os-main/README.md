@@ -1,1 +1,0 @@
-# sass-growth-os
