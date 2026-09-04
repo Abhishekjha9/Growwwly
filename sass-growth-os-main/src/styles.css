@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 
 /* ============================================================
-   GROWWWLY — DESIGN TOKENS
+   AI GROWTH STRATEGIST — DESIGN TOKENS
    Quiet first. Intelligent second. Beautiful through restraint.
    ============================================================ */
 
@@ -54,8 +54,8 @@
 
   /* --- Type ---------------------------------------------------------- */
   --font-sans:
-    var(--font-inter), 'Inter var', 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text',
-    'Segoe UI', system-ui, sans-serif;
+    'Inter var', 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui,
+    sans-serif;
   --font-mono: 'SF Mono', 'Berkeley Mono', ui-monospace, 'JetBrains Mono', Menlo, monospace;
 
   /* --- Motion -------------------------------------------------------- */
@@ -212,6 +212,10 @@
     font-weight: 560;
     letter-spacing: 0.1em;
     text-transform: uppercase;
+    /* Muted, not faint. At 11px, uppercase and letterspaced, this is the
+       hardest text in the system to read; faint puts it at 2.7:1 on canvas.
+       The token stays where it is — it is still right for hairline marks and
+       resting states — but the label that names a number is not decoration. */
     color: var(--color-muted);
   }
 
@@ -241,6 +245,7 @@
     border-color: var(--color-hairline);
   }
 
+  /* The one and only rule for horizontal section separation */
   .rule {
     height: 1px;
     background: var(--color-hairline);
@@ -251,6 +256,16 @@
   .focus-ring:focus-visible {
     outline: 2px solid var(--color-accent);
     outline-offset: 3px;
+  }
+
+  /* Grain: a barely-there warmth over the canvas. Never a gradient. */
+  .grain::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.028;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 }
 
@@ -288,6 +303,7 @@
 
 /* ============================================================
    REDUCED MOTION
+   Animation must never be required to understand information.
    ============================================================ */
 
 @media (prefers-reduced-motion: reduce) {
@@ -301,6 +317,10 @@
   }
 }
 
+/* The same rules, reachable from the in-app switch. A user who turns motion
+   off in Settings has not changed their OS preference, so the media query
+   above never fires for them; without this the CSS half of the system keeps
+   animating while the JS half stops. `useReducedMotion` writes the attribute. */
 [data-reduced-motion='true'] *,
 [data-reduced-motion='true'] *::before,
 [data-reduced-motion='true'] *::after {

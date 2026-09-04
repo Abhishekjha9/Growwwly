@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Reference-only source for the UI integration; not part of this app.
+    "sass-growth-os-main/**",
   ]),
 ]);
 

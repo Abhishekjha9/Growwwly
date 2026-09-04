@@ -1,0 +1,13 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# The app uses BrowserRouter, so /app/plan and friends are client-side routes
+# with no file behind them. Without this, a direct load or a refresh on any
+# route other than "/" returns 404. Status 200 rewrites rather than redirects,
+# so the URL the user typed is the URL they keep. Netlify serves real files
+# from dist/ before this rule applies, so /assets/* is unaffected.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
