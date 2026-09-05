@@ -17,7 +17,7 @@ export default function MarketPage() {
   const { result } = useAnalysis()
   if (!result) return <EmptyState />
 
-  const { marketSignals, productFitSignals } = result
+  const { marketSignals, productFitSignals } = result.productIntelligence
 
   return (
     <div className="max-w-[880px] pb-4">

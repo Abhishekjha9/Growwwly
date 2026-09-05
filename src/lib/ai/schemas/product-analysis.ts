@@ -17,8 +17,16 @@ export const ProductAnalysisRequestSchema = z.object({
     .min(1, "Product description is required")
     .max(5000, "Product description is too long"),
 
-  /** Optional: the product's URL */
-  url: z.string().url("Invalid URL format").optional(),
+  /** Optional: the product's website — also the trigger for Phase 3 Website
+   * Intelligence. Only http/https is ever accepted; deeper safety checks
+   * (private-IP/SSRF protection) happen at fetch time in `@/lib/website`. */
+  url: z
+    .string()
+    .url("Invalid URL format")
+    .refine((value) => /^https?:\/\//i.test(value), {
+      message: "URL must start with http:// or https://",
+    })
+    .optional(),
 
   /** Optional: who the product is built for */
   targetCustomer: z.string().max(1000).optional(),

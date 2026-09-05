@@ -51,6 +51,13 @@ const ICONS: Record<string, ReactNode> = {
       <path d="M10.6 12.6 V3.6" />
     </>
   ),
+  Website: (
+    <>
+      <rect x="2.4" y="3" width="11.2" height="10" rx="2.2" />
+      <path d="M2.4 6.2 h11.2" />
+      <circle cx="4.6" cy="4.6" r="0.5" fill="currentColor" stroke="none" />
+    </>
+  ),
   Settings: (
     <>
       <circle cx="8" cy="8" r="2.1" />
@@ -184,10 +191,12 @@ function TopBar({ onMenu }: { onMenu: () => void }) {
 
       <div className="flex min-w-0 items-baseline gap-2.5">
         <span className="truncate text-[14px] font-[540] tracking-[-0.02em]">
-          {result?.product.name ?? 'No analysis yet'}
+          {result?.productIntelligence.product.name ?? 'No analysis yet'}
         </span>
         {result && (
-          <span className="hidden truncate text-[13px] text-faint sm:block">{result.product.category}</span>
+          <span className="hidden truncate text-[13px] text-faint sm:block">
+            {result.productIntelligence.product.category}
+          </span>
         )}
       </div>
 

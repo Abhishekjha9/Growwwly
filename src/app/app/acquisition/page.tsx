@@ -1,68 +1,62 @@
 /**
- * Acquisition — eight channels, each with an AI relevance signal.
+ * Acquisition — eight channels, ranked by Opportunity Score.
  *
- * Sorted by signal strength so the strongest reads first, but this is not a
- * ranking produced by a scoring engine — that's Phase 2. Each row is one
- * Gemini-generated estimate of fit for this specific product.
+ * The ranking, scores and recommendations here come from the deterministic
+ * Growth Intelligence Engine (`@/lib/growth`), not from Gemini. Gemini's own
+ * raw relevance signal is still shown for each channel, clearly separated,
+ * so the two are never confused.
  */
 
 'use client'
 
 import { EmptyState } from '@/components/EmptyState'
 import { Label, Reveal } from '@/components/primitives'
-import { SignalRow } from '@/components/analyze/SignalRow'
+import { ChannelResultRow } from '@/components/analyze/ChannelResultRow'
 import { useAnalysis } from '@/lib/analysis-store'
-import type { ProductIntelligence } from '@/types/product'
-
-const CHANNEL_LABELS: Record<keyof ProductIntelligence['channelSignals'], string> = {
-  seo: 'SEO',
-  outbound: 'Outbound',
-  communities: 'Communities',
-  content: 'Content',
-  social: 'Social',
-  partnerships: 'Partnerships',
-  paidAds: 'Paid ads',
-  referrals: 'Referrals',
-}
 
 export default function AcquisitionPage() {
   const { result } = useAnalysis()
   if (!result) return <EmptyState />
 
-  const channels = (Object.keys(result.channelSignals) as Array<keyof typeof CHANNEL_LABELS>)
-    .map((key) => ({
-      key,
-      label: CHANNEL_LABELS[key],
-      ...result.channelSignals[key],
-    }))
-    .sort((a, b) => b.relevance - a.relevance)
+  const { rankedChannels, summary } = result.growthIntelligence
+  const { product } = result.productIntelligence
 
   return (
     <div className="max-w-[880px] pb-4">
       <Reveal>
         <header className="mb-14 lg:mb-20">
           <Label className="mb-4">Acquisition</Label>
-          <h1 className="t-h1">Channel signals</h1>
+          <h1 className="t-h1">Ranked channels</h1>
           <p className="t-body mt-5 max-w-[64ch]">
-            An AI-generated relevance signal for each channel, for {result.product.name} specifically
-            — not a ranked recommendation. The deterministic channel-ranking engine is planned for
-            Phase 2.
+            Eight channels for {product.name}, ranked by Opportunity Score — a framework score our
+            code computes from the model&apos;s market, product-fit and channel signals, tempered
+            by confidence, effort and the constraints you gave us. Not a score Gemini generated.
           </p>
+          {summary.decisionType === 'test' && (
+            <p className="t-body mt-4 max-w-[64ch] text-accent-ink">
+              Top opportunities are closely matched, or overall confidence is low — worth testing
+              before committing fully to one channel.
+            </p>
+          )}
         </header>
       </Reveal>
 
       <Reveal>
         <section>
-          <div className="flex items-baseline justify-between gap-4 pb-1">
-            <Label>Channel</Label>
-            <Label>AI signal</Label>
-          </div>
           <div>
-            {channels.map((c, i) => (
-              <SignalRow key={c.key} label={c.label} value={c.relevance} reasoning={c.reasoning} first={i === 0} />
+            {rankedChannels.map((c, i) => (
+              <ChannelResultRow key={c.channel} result={c} rank={i + 1} lead={i === 0} />
             ))}
           </div>
         </section>
+      </Reveal>
+
+      <Reveal className="mt-16 max-w-[62ch]">
+        <p className="t-body text-muted">
+          Opportunity Score weighs each channel&apos;s signal fit against the reliability of this
+          analysis, the relative effort the channel takes to run, and your stated budget,
+          experience and timeline. It moves as the product, and the analysis, do.
+        </p>
       </Reveal>
     </div>
   )

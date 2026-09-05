@@ -16,7 +16,7 @@ export default function ProductPage() {
   const { result } = useAnalysis()
   if (!result) return <EmptyState />
 
-  const { product, customer, problem } = result
+  const { product, customer, problem } = result.productIntelligence
 
   return (
     <div className="max-w-[880px] pb-4">

@@ -64,14 +64,38 @@ export const NAV = [
   { to: '/app/product', label: 'Product' },
   { to: '/app/market', label: 'Market' },
   { to: '/app/acquisition', label: 'Acquisition' },
+  { to: '/app/website', label: 'Website' },
 ] as const
 
 /* -- Analysis run narration ------------------------------------------------ */
 
-export const ANALYSIS_STEPS = [
+const PRODUCT_ANALYSIS_STEPS = [
   { id: 'product', label: 'Understanding your product', detail: 'Reading what it does and who it serves' },
   { id: 'customer', label: 'Identifying your customers', detail: 'Buyer, user, and ideal customer profile' },
   { id: 'market', label: 'Evaluating market signals', detail: 'Search intent, community, word of mouth' },
   { id: 'channels', label: 'Mapping acquisition channels', detail: 'SEO, outbound, communities and more' },
-  { id: 'confidence', label: 'Generating product intelligence', detail: 'Assembling the full profile' },
 ] as const
+
+/** Only narrated when a website URL was actually given — real stages of the
+ * Phase 3 pipeline, not a fabricated percentage. */
+const WEBSITE_INSPECTION_STEPS = [
+  { id: 'fetch', label: 'Fetching your website', detail: 'Loading the live page directly' },
+  { id: 'structure', label: 'Inspecting page structure', detail: 'Titles, headings, links, and metadata' },
+  { id: 'audit', label: 'Running technical audit', detail: 'Performance, accessibility, SEO fundamentals' },
+  { id: 'render', label: 'Rendering desktop and mobile views', detail: 'Capturing how it actually looks' },
+  { id: 'experience', label: 'Analyzing website experience', detail: 'Positioning, hero, and conversion readiness' },
+] as const
+
+const STRATEGY_STEP = {
+  id: 'strategy',
+  label: 'Building growth strategy',
+  detail: 'Combining every signal into one decision',
+} as const
+
+export function buildAnalysisSteps(includeWebsite: boolean) {
+  return [
+    ...PRODUCT_ANALYSIS_STEPS,
+    ...(includeWebsite ? WEBSITE_INSPECTION_STEPS : []),
+    STRATEGY_STEP,
+  ]
+}

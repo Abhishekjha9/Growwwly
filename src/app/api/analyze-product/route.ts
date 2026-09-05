@@ -9,6 +9,9 @@ import {
   PRODUCT_ANALYSIS_SYSTEM_PROMPT,
   buildProductAnalysisUserPrompt,
 } from "@/lib/ai/prompts/product-analysis";
+import { computeGrowthIntelligence } from "@/lib/growth";
+import { analyzeWebsite } from "@/lib/website";
+import type { WebsiteIntelligence } from "@/types/website";
 
 // ---------------------------------------------------------------------------
 // POST /api/analyze-product
@@ -86,9 +89,54 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 5. Return the validated Product Intelligence Profile
+    // 5. Website Intelligence (Phase 3) — only when a URL was supplied, and
+    //    never allowed to fail the rest of the analysis. A broken site, a
+    //    Playwright crash, or a Lighthouse timeout all degrade to `null`
+    //    (or a "partial" WebsiteIntelligence) rather than a 500.
+    let websiteIntelligence: WebsiteIntelligence | null = null;
+    if (input.url) {
+      try {
+        websiteIntelligence = await analyzeWebsite(input.url, {
+          name: validated.data.product.name,
+          category: validated.data.product.category,
+          description: validated.data.product.description,
+          primaryUseCase: validated.data.product.primaryUseCase,
+        });
+      } catch (err) {
+        console.error("[analyze-product] Website Intelligence failed unexpectedly:", err);
+        websiteIntelligence = null;
+      }
+    }
+
+    // 6. Run the deterministic Growth Intelligence Engine (Phase 2 + 3) on
+    //    top of the validated Product Intelligence and (if present) Website
+    //    Intelligence. Gemini never sees this step and never produces the
+    //    final channel scores or the highest-leverage decision — it's plain
+    //    TypeScript, computed from the signals already returned above.
+    let growthIntelligence;
+    try {
+      growthIntelligence = computeGrowthIntelligence(validated.data, websiteIntelligence);
+    } catch (err) {
+      console.error("[analyze-product] Growth Intelligence Engine error:", err);
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Failed to compute growth intelligence. Please try again.",
+        },
+        { status: 500 }
+      );
+    }
+
+    // 7. Return all three parts of the analysis, clearly separated.
     return NextResponse.json(
-      { success: true, data: validated.data },
+      {
+        success: true,
+        data: {
+          productIntelligence: validated.data,
+          websiteIntelligence,
+          growthIntelligence,
+        },
+      },
       { status: 200 }
     );
   } catch (err) {

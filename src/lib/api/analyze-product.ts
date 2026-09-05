@@ -1,14 +1,15 @@
-import type { ProductAnalysisRequest, ProductIntelligence } from '@/types/product'
+import type { ProductAnalysisRequest } from '@/types/product'
+import type { AnalysisResult } from '@/types/analysis'
 
 export class AnalyzeProductError extends Error {}
 
 /**
- * Calls the existing Phase 1 backend. Never throws the raw fetch/parse error —
- * always a message safe to show a user (no stack traces, no API keys).
+ * Calls the existing Phase 1+2 backend. Never throws the raw fetch/parse
+ * error — always a message safe to show a user (no stack traces, no API keys).
  */
 export async function analyzeProduct(
   input: ProductAnalysisRequest
-): Promise<ProductIntelligence> {
+): Promise<AnalysisResult> {
   let response: Response
   try {
     response = await fetch('/api/analyze-product', {
@@ -27,7 +28,7 @@ export async function analyzeProduct(
     throw new AnalyzeProductError('The server returned an unexpected response. Please try again.')
   }
 
-  const body = data as { success?: boolean; data?: ProductIntelligence; error?: string }
+  const body = data as { success?: boolean; data?: AnalysisResult; error?: string }
 
   if (!response.ok || !body.success || !body.data) {
     throw new AnalyzeProductError(body.error || 'Analysis failed. Please try again.')

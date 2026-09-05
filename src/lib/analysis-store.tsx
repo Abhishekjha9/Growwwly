@@ -16,19 +16,24 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import type { ProductIntelligence } from '@/types/product'
+import type { AnalysisResult } from '@/types/analysis'
 
-const STORAGE_KEY = 'growwwly:last-analysis'
+// Bumped whenever the stored shape changes: v2 added
+// `{ productIntelligence, growthIntelligence }` (was a bare
+// ProductIntelligence), v3 added `websiteIntelligence`. A stale entry left
+// over in a browser's sessionStorage would otherwise parse fine but crash
+// the first component that reads a field the old shape didn't have.
+const STORAGE_KEY = 'growwwly:last-analysis:v3'
 
 interface AnalysisContextValue {
-  result: ProductIntelligence | null
-  setResult: (result: ProductIntelligence | null) => void
+  result: AnalysisResult | null
+  setResult: (result: AnalysisResult | null) => void
 }
 
 const AnalysisContext = createContext<AnalysisContextValue | null>(null)
 
 export function AnalysisProvider({ children }: { children: ReactNode }) {
-  const [result, setResultState] = useState<ProductIntelligence | null>(null)
+  const [result, setResultState] = useState<AnalysisResult | null>(null)
 
   useEffect(() => {
     // Deliberately post-hydration: reading sessionStorage during the initial
@@ -43,7 +48,7 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const setResult = useCallback((next: ProductIntelligence | null) => {
+  const setResult = useCallback((next: AnalysisResult | null) => {
     setResultState(next)
     try {
       if (next) sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next))

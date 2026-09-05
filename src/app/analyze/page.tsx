@@ -20,10 +20,12 @@ import { Button, Label } from '@/components/primitives'
 import { TextField, TextAreaField } from '@/components/analyze/Field'
 import { GrowthCore, CoreMark } from '@/growthcore/GrowthCore'
 import type { CoreState } from '@/growthcore/state'
-import { ANALYSIS_STEPS, PROJECT } from '@/data/growth'
+import { PROJECT, buildAnalysisSteps } from '@/data/growth'
+import { actionSubjectLabel } from '@/lib/growth/constants'
 import { analyzeProduct, AnalyzeProductError } from '@/lib/api/analyze-product'
 import { useAnalysis } from '@/lib/analysis-store'
-import type { ProductAnalysisRequest, ProductIntelligence } from '@/types/product'
+import type { ProductAnalysisRequest } from '@/types/product'
+import type { AnalysisResult } from '@/types/analysis'
 
 type Phase = 'entry' | 'running' | 'done' | 'error'
 
@@ -88,8 +90,9 @@ export default function AnalyzePage() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [showMore, setShowMore] = useState(false)
   const [step, setStep] = useState(0)
+  const [steps, setSteps] = useState(() => buildAnalysisSteps(false))
   const [errorMessage, setErrorMessage] = useState('')
-  const [profile, setProfile] = useState<ProductIntelligence | null>(null)
+  const [profile, setProfile] = useState<AnalysisResult | null>(null)
 
   const narrationTimer = useRef<number | null>(null)
 
@@ -106,11 +109,13 @@ export default function AnalyzePage() {
 
   const runAnalysis = useCallback(
     async (request: ProductAnalysisRequest) => {
+      const activeSteps = buildAnalysisSteps(!!request.url)
+      setSteps(activeSteps)
       setStep(0)
       setPhase('running')
       clearNarration()
       narrationTimer.current = window.setInterval(() => {
-        setStep((s) => Math.min(s + 1, ANALYSIS_STEPS.length - 1))
+        setStep((s) => Math.min(s + 1, activeSteps.length - 1))
       }, STEP_MS)
 
       try {
@@ -148,7 +153,7 @@ export default function AnalyzePage() {
   }
 
   const coreState = coreStateFor(phase, step)
-  const fill = (step + 1) / ANALYSIS_STEPS.length
+  const fill = (step + 1) / steps.length
 
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
@@ -301,7 +306,7 @@ export default function AnalyzePage() {
                 <p className="t-meta text-center text-faint">{form.name}</p>
 
                 <ol className="mt-7">
-                  {ANALYSIS_STEPS.map((s, i) => {
+                  {steps.map((s, i) => {
                     const done = i < step
                     const current = i === step
                     return (
@@ -351,7 +356,7 @@ export default function AnalyzePage() {
                 </div>
 
                 <p className="sr-only" aria-live="polite">
-                  {ANALYSIS_STEPS[step]?.label ?? ''}
+                  {steps[step]?.label ?? ''}
                 </p>
               </motion.div>
             )}
@@ -366,13 +371,27 @@ export default function AnalyzePage() {
                 transition={{ duration: reduced ? 0.2 : 0.5, ease: EASE.out }}
               >
                 <Label>Analysis complete</Label>
-                <h1 className="t-title mt-4">{profile.product.name}</h1>
+                <h1 className="t-title mt-4">{profile.productIntelligence.product.name}</h1>
                 <p className="t-body mx-auto mt-4 max-w-[54ch] text-muted">
-                  {profile.product.category} · {profile.confidence.overall}% model confidence
+                  {profile.productIntelligence.product.category} ·{' '}
+                  {profile.productIntelligence.confidence.overall}% model confidence
                 </p>
-                <p className="t-body mx-auto mt-5 max-w-[58ch]">{profile.product.description}</p>
+                <p className="t-body mx-auto mt-5 max-w-[58ch]">
+                  {profile.productIntelligence.product.description}
+                </p>
 
-                <div className="mt-11 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+                <div className="mt-10 border-t border-hairline pt-8">
+                  <Label tone="accent">Highest-leverage action</Label>
+                  <p className="t-h2 mx-auto mt-3.5 max-w-[26ch] text-ink">
+                    {profile.growthIntelligence.highestLeverageAction.title}
+                  </p>
+                  <p className="t-meta mx-auto mt-2.5 max-w-[52ch]">
+                    {actionSubjectLabel(profile.growthIntelligence.highestLeverageAction.channel)} ·{' '}
+                    {profile.growthIntelligence.highestLeverageAction.opportunityScore} opportunity score
+                  </p>
+                </div>
+
+                <div className="mt-9 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
                   <Button
                     variant="primary"
                     size="lg"

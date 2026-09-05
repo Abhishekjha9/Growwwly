@@ -60,6 +60,13 @@ function cleanSchemaForGemini(schema: Record<string, any>): Record<string, any> 
 // Public API
 // ---------------------------------------------------------------------------
 
+export interface GeminiImagePart {
+  /** e.g. "image/jpeg" */
+  mimeType: string;
+  /** base64-encoded image bytes (no `data:` prefix). */
+  data: string;
+}
+
 export interface GeminiGenerateOptions {
   /** System-level instruction */
   systemPrompt: string;
@@ -69,6 +76,9 @@ export interface GeminiGenerateOptions {
   responseSchema: z.ZodTypeAny;
   /** Optional temperature override (default: model default) */
   temperature?: number;
+  /** Optional images for multimodal input (e.g. website screenshots) — still
+   * the same Gemini model and client, just additional content parts. */
+  images?: GeminiImagePart[];
 }
 
 /**
@@ -91,9 +101,19 @@ export async function generateStructuredResponse(
     rawJsonSchema as Record<string, unknown>
   );
 
+  const contents =
+    options.images && options.images.length > 0
+      ? [
+          options.userPrompt,
+          ...options.images.map((image) => ({
+            inlineData: { mimeType: image.mimeType, data: image.data },
+          })),
+        ]
+      : options.userPrompt;
+
   const response = await client.models.generateContent({
     model: GEMINI_MODEL,
-    contents: options.userPrompt,
+    contents,
     config: {
       systemInstruction: options.systemPrompt,
       responseMimeType: "application/json",
