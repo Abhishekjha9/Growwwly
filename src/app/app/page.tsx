@@ -13,6 +13,7 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { EmptyState } from '@/components/EmptyState'
 import { Confidence, Label, ProvenanceTag } from '@/components/primitives'
+import { DownloadReportButton } from '@/components/analyze/DownloadReportButton'
 import { actionSubjectLabel } from '@/lib/growth/constants'
 import { calm, rise, riseLg, stagger, useReducedMotion } from '@/lib/motion'
 import { useAnalysis } from '@/lib/analysis-store'
@@ -88,13 +89,14 @@ export default function Overview() {
           <Stat value={action.effortLabel} label="Estimated effort" />
         </div>
 
-        <div className="mt-12 flex flex-wrap items-center gap-2 lg:mt-14">
+        <div className="mt-12 flex flex-wrap items-center gap-3 lg:mt-14">
           <Link
             href="/app/acquisition"
             className="inline-flex h-12 items-center justify-center rounded-[14px] bg-ink px-6 text-[15px] font-[550] text-white shadow-[0_1px_2px_rgba(17,17,17,0.12)] transition-[background-color,transform] duration-[180ms] ease-[cubic-bezier(0.16,1,0.3,1)] hover:bg-black hover:-translate-y-px"
           >
             See ranked channels
           </Link>
+          <DownloadReportButton analysis={result} />
         </div>
 
         {action.evidence.length > 0 && (

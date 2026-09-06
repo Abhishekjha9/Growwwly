@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@google/genai": "^2.21.0",
+    "@react-pdf/renderer": "^4.9.0",
     "cheerio": "^1.2.0",
     "chrome-launcher": "^1.2.1",
     "dotenv": "^17.4.2",
