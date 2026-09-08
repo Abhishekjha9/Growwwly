@@ -79,6 +79,9 @@ export interface GeminiGenerateOptions {
   /** Optional images for multimodal input (e.g. website screenshots) — still
    * the same Gemini model and client, just additional content parts. */
   images?: GeminiImagePart[];
+  /** Optional output-token cap — every AI task should set one explicitly
+   * rather than paying for an unbounded response (see `@/lib/ai/client`). */
+  maxOutputTokens?: number;
 }
 
 /**
@@ -119,6 +122,7 @@ export async function generateStructuredResponse(
       responseMimeType: "application/json",
       responseSchema: geminiSchema,
       temperature: options.temperature,
+      maxOutputTokens: options.maxOutputTokens,
     },
   });
 
@@ -132,4 +136,80 @@ export async function generateStructuredResponse(
   } catch {
     throw new Error("Gemini returned invalid JSON.");
   }
+}
+
+// ---------------------------------------------------------------------------
+// Grounded generation (Google Search) — Growth Opportunity Discovery only
+// ---------------------------------------------------------------------------
+//
+// Gemini's API does not allow combining a Google Search tool with structured
+// output (`responseSchema`/`responseMimeType: "application/json"`) in the
+// same request — the two are mutually exclusive. `generateStructuredResponse`
+// above stays untouched for Phase 1/3; this is a separate path used only by
+// the Opportunity Discovery engine, which asks for JSON in the prompt itself
+// and validates the result with Zod afterward (see `@/lib/opportunities`).
+
+/** A single web source Gemini's Google Search grounding actually retrieved.
+ * Used to confirm opportunities are backed by a real search result rather
+ * than invented by the model — never trust the model's prose alone. */
+export interface GeminiGroundingSource {
+  title?: string;
+  uri?: string;
+  domain?: string;
+}
+
+export interface GeminiGroundedResult {
+  /** Raw text response — the caller extracts/validates JSON from this. */
+  text: string;
+  /** Actual grounded sources returned by Google Search, if any. */
+  groundingSources: GeminiGroundingSource[];
+  /** The search queries Gemini actually issued, if reported. */
+  webSearchQueries: string[];
+}
+
+export interface GeminiGroundedGenerateOptions {
+  systemPrompt: string;
+  userPrompt: string;
+  temperature?: number;
+}
+
+/**
+ * Send a Google Search-grounded request to Gemini. Unlike
+ * `generateStructuredResponse`, this does not (and cannot) enforce a JSON
+ * schema server-side — the prompt must ask for JSON explicitly, and the
+ * caller must parse and Zod-validate `text` itself.
+ */
+export async function generateGroundedResponse(
+  options: GeminiGroundedGenerateOptions
+): Promise<GeminiGroundedResult> {
+  const client = getClient();
+
+  const response = await client.models.generateContent({
+    model: GEMINI_MODEL,
+    contents: options.userPrompt,
+    config: {
+      systemInstruction: options.systemPrompt,
+      temperature: options.temperature,
+      tools: [{ googleSearch: {} }],
+    },
+  });
+
+  const text = response.text;
+  if (!text) {
+    throw new Error("Gemini returned an empty response.");
+  }
+
+  const groundingMetadata = response.candidates?.[0]?.groundingMetadata;
+  const groundingSources: GeminiGroundingSource[] = (
+    groundingMetadata?.groundingChunks ?? []
+  )
+    .map((chunk) => chunk.web)
+    .filter((web): web is NonNullable<typeof web> => Boolean(web?.uri))
+    .map((web) => ({ title: web.title, uri: web.uri, domain: web.domain }));
+
+  return {
+    text,
+    groundingSources,
+    webSearchQueries: groundingMetadata?.webSearchQueries ?? [],
+  };
 }

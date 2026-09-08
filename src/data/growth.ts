@@ -65,6 +65,7 @@ export const NAV = [
   { to: '/app/market', label: 'Market' },
   { to: '/app/acquisition', label: 'Acquisition' },
   { to: '/app/website', label: 'Website' },
+  { to: '/app/opportunities', label: 'Opportunities' },
 ] as const
 
 /* -- Analysis run narration ------------------------------------------------ */

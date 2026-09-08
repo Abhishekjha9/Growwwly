@@ -64,6 +64,11 @@ const ICONS: Record<string, ReactNode> = {
       <path d="M8 1.9 v1.5 M8 12.6 v1.5 M1.9 8 h1.5 M12.6 8 h1.5 M3.7 3.7 l1.05 1.05 M11.25 11.25 l1.05 1.05 M12.3 3.7 l-1.05 1.05 M4.75 11.25 l-1.05 1.05" />
     </>
   ),
+  Opportunities: (
+    <>
+      <path d="M3 4.4 h10 a1 1 0 0 1 1 1 v4.4 a1 1 0 0 1 -1 1 H8.4 L5.6 13.4 v-2.6 H3 a1 1 0 0 1 -1 -1 v-4.4 a1 1 0 0 1 1 -1 z" />
+    </>
+  ),
 }
 
 function Icon({ name }: { name: string }) {

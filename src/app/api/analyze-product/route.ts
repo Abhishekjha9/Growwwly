@@ -4,8 +4,9 @@ import {
   ProductAnalysisRequestSchema,
   ProductIntelligenceSchema,
 } from "@/lib/ai/schemas/product-analysis";
-import { generateStructuredResponse } from "@/lib/ai/gemini";
+import { generateStructuredResponse } from "@/lib/ai/client";
 import {
+  PRODUCT_ANALYSIS_MAX_OUTPUT_TOKENS,
   PRODUCT_ANALYSIS_SYSTEM_PROMPT,
   buildProductAnalysisUserPrompt,
 } from "@/lib/ai/prompts/product-analysis";
@@ -58,10 +59,11 @@ export async function POST(request: NextRequest) {
         systemPrompt: PRODUCT_ANALYSIS_SYSTEM_PROMPT,
         userPrompt,
         responseSchema: ProductIntelligenceSchema,
-        temperature: 0.7,
+        temperature: 0.3,
+        maxOutputTokens: PRODUCT_ANALYSIS_MAX_OUTPUT_TOKENS,
       });
     } catch (err) {
-      console.error("[analyze-product] Gemini API error:", err);
+      console.error("[analyze-product] AI provider error:", err);
       return NextResponse.json(
         {
           success: false,

@@ -1,6 +1,13 @@
 import type { ProductAnalysisRequest } from "@/lib/ai/schemas/product-analysis";
 
 // ---------------------------------------------------------------------------
+// Output budget — the schema is ~9 objects of mostly 0-100 integers plus a
+// handful of short strings/arrays; observed Gemini responses for it run well
+// under 2,000 tokens, so this is a real cap rather than a round default.
+// ---------------------------------------------------------------------------
+export const PRODUCT_ANALYSIS_MAX_OUTPUT_TOKENS = 2000;
+
+// ---------------------------------------------------------------------------
 // System prompt — establishes Gemini as a SaaS Growth Intelligence Analyst
 // ---------------------------------------------------------------------------
 
