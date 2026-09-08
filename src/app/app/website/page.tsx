@@ -10,8 +10,9 @@
 'use client'
 
 import { EmptyState } from '@/components/EmptyState'
-import { Label, ProvenanceTag, Reveal, SignalBar, StatusDot } from '@/components/primitives'
+import { Label, ProvenanceDot, Reveal, SignalBar, StatusDot } from '@/components/primitives'
 import { SignalRow } from '@/components/analyze/SignalRow'
+import { cn } from '@/lib/cn'
 import { useAnalysis } from '@/lib/analysis-store'
 import { CHANNEL_LABELS } from '@/lib/growth/constants'
 import type { WebsiteIntelligence } from '@/types/website'
@@ -24,11 +25,25 @@ const BOTTLENECK_COPY: Record<string, string> = {
   unknown: 'No single bottleneck stands out',
 }
 
+/** The shared `ProvenanceTag kind="measured"` reads "From your answers" —
+ * correct on the Product/Market pages (values the founder typed), but wrong
+ * here: Lighthouse/Cheerio facts are measured directly from the live site,
+ * not from the analysis form. Same dot styling, correct copy. */
+function MeasuredDataTag({ className }: { className?: string }) {
+  return (
+    <span className={cn('inline-flex items-center gap-1.5 text-[11.5px] tracking-[-0.002em]', className)}>
+      <ProvenanceDot kind="measured" />
+      <span className="text-muted">Measured data</span>
+    </span>
+  )
+}
+
 function HealthStat({ label, value }: { label: string; value: number | null }) {
   return (
     <div>
       <div className="tnum t-h2 text-ink">{value ?? '—'}</div>
       <Label className="mt-2">{label}</Label>
+      {value !== null && <SignalBar value={value} tone="muted" className="mt-3" />}
     </div>
   )
 }
@@ -100,7 +115,7 @@ export default function WebsitePage() {
     <div className="max-w-[880px] pb-4">
       <Reveal>
         <header className="mb-14 lg:mb-20">
-          <Label className="mb-4">Website</Label>
+          <Label className="mb-4">Website intelligence</Label>
           <h1 className="t-h1">{websiteIntelligence.crawl.finalUrl ?? websiteIntelligence.url}</h1>
           <p className="t-body mt-5 max-w-[64ch]">
             Growwwly fetched this page, rendered it in a real browser, and had Gemini interpret
@@ -125,8 +140,8 @@ export default function WebsitePage() {
 
       <Reveal>
         <section aria-labelledby="sec-health">
-          <h2 id="sec-health" className="t-label mb-1">
-            Website health
+          <h2 id="sec-health" className="t-h1 mb-1">
+            Health
           </h2>
           <p className="t-meta mb-6 max-w-[58ch]">Lighthouse — measured, not interpreted.</p>
 
@@ -138,7 +153,7 @@ export default function WebsitePage() {
                 <HealthStat label="Best practices" value={performance.bestPractices} />
                 <HealthStat label="SEO" value={performance.seo} />
               </div>
-              <ProvenanceTag kind="measured" />
+              <MeasuredDataTag className="mt-1" />
             </>
           ) : (
             <p className="t-body border-t border-hairline py-7 text-muted">
@@ -189,8 +204,8 @@ export default function WebsitePage() {
         <>
           <Reveal className="mt-16 lg:mt-24">
             <section aria-labelledby="sec-conversion">
-              <h2 id="sec-conversion" className="t-label mb-1">
-                Website conversion
+              <h2 id="sec-conversion" className="t-h1 mb-1">
+                Conversion
               </h2>
               <p className="t-meta mb-6 max-w-[58ch]">
                 AI-interpreted readiness signals — the model&apos;s reading of the screenshots and
@@ -210,8 +225,8 @@ export default function WebsitePage() {
 
           <Reveal className="mt-16 lg:mt-24">
             <section aria-labelledby="sec-experience">
-              <h2 id="sec-experience" className="t-label mb-6">
-                Website experience
+              <h2 id="sec-experience" className="t-h1 mb-6">
+                Experience
               </h2>
               <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
                 <Screenshot label="Desktop" captured={visual.desktop.captured} dataUrl={visual.desktop.screenshotDataUrl} />
@@ -245,7 +260,7 @@ export default function WebsitePage() {
 
           <Reveal className="mt-16 lg:mt-24">
             <section aria-labelledby="sec-implications">
-              <h2 id="sec-implications" className="t-label mb-6">
+              <h2 id="sec-implications" className="t-h1 mb-6">
                 Growth implications
               </h2>
               <div className="grid grid-cols-1 gap-10 sm:grid-cols-3">

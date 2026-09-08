@@ -114,6 +114,10 @@ export async function generateStructuredResponse(
         ]
       : options.userPrompt;
 
+  if (options.images && options.images.length > 0) {
+    console.log(`[gemini] sending multimodal request with ${options.images.length} image(s)`);
+  }
+
   const response = await client.models.generateContent({
     model: GEMINI_MODEL,
     contents,
@@ -207,9 +211,14 @@ export async function generateGroundedResponse(
     .filter((web): web is NonNullable<typeof web> => Boolean(web?.uri))
     .map((web) => ({ title: web.title, uri: web.uri, domain: web.domain }));
 
+  const webSearchQueries = groundingMetadata?.webSearchQueries ?? [];
+  console.log(
+    `[gemini] grounded response: ${groundingSources.length} source(s), queries: [${webSearchQueries.join(" | ") || "none"}]`
+  );
+
   return {
     text,
     groundingSources,
-    webSearchQueries: groundingMetadata?.webSearchQueries ?? [],
+    webSearchQueries,
   };
 }

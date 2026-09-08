@@ -248,7 +248,7 @@ export default function OpportunitiesPage() {
       {status === 'success' && (
         <Reveal>
           <section className="mt-2">
-            <div className="border-t border-hairline pt-8">
+            <div className="border-t border-hairline py-4">
               <OpportunityFilters active={filter} onChange={setFilter} />
             </div>
 

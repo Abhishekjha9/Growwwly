@@ -101,7 +101,9 @@ describe("generateOpenAiStructuredResponse", () => {
   it("8. surfaces a clean error on an HTTP failure without retrying", async () => {
     createMock.mockRejectedValue(apiError(500));
 
-    await expect(generateOpenAiStructuredResponse(baseOptions)).rejects.toThrow(/failed/i);
+    await expect(generateOpenAiStructuredResponse(baseOptions)).rejects.toThrow(
+      /server error/i
+    );
     expect(createMock).toHaveBeenCalledTimes(1);
   });
 

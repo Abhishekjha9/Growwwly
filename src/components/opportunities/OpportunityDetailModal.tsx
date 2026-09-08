@@ -60,7 +60,7 @@ export function OpportunityDetailModal({
     <AnimatePresence>
       {opportunity && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[rgba(17,17,17,0.32)] p-5 py-10 backdrop-blur-[2px] sm:items-center"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[rgba(31,13,17,0.32)] p-5 py-10 backdrop-blur-[2px] sm:items-center"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -113,7 +113,7 @@ export function OpportunityDetailModal({
                 {opportunity.matchingSignals.map((signal) => (
                   <span
                     key={signal}
-                    className="inline-flex items-center rounded-full bg-[rgba(17,17,17,0.045)] px-3 py-1 text-[12px] text-muted"
+                    className="inline-flex items-center rounded-full bg-[rgba(31,13,17,0.045)] px-3 py-1 text-[12px] text-muted"
                   >
                     {signal}
                   </span>

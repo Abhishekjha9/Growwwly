@@ -1,10 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildAnalysis } from "./fixtures";
 
-const generateOpenAiWebSearchResponseMock = vi.fn();
-vi.mock("@/lib/ai/providers/openai", () => ({
-  generateOpenAiWebSearchResponse: (...args: unknown[]) =>
-    generateOpenAiWebSearchResponseMock(...args),
+// ---------------------------------------------------------------------------
+// Mock Gemini's generateGroundedResponse — Opportunity Discovery was switched
+// back from OpenAI web_search to Gemini Google Search grounding. The mock
+// must match the GeminiGroundedResult shape: { text, groundingSources,
+// webSearchQueries }.
+// ---------------------------------------------------------------------------
+
+const generateGroundedResponseMock = vi.fn();
+vi.mock("@/lib/ai/gemini", () => ({
+  generateGroundedResponse: (...args: unknown[]) =>
+    generateGroundedResponseMock(...args),
 }));
 
 const { discoverOpportunities } = await import("../engine");
@@ -25,27 +32,53 @@ const VALID_RAW = {
   responseDraft: "We ran into this too — sharing one view instead of another status meeting helped.",
 };
 
-/** A response where every candidate opportunity's URL is backed by a real
- * citation — the normal, successful case. */
-function webSearchResult(opportunities: unknown[], extraCitations: string[] = []) {
+const HN_RAW = {
+  ...VALID_RAW,
+  title: "Ask HN: What do you use for engineering project tracking?",
+  url: "https://news.ycombinator.com/item?id=99999",
+  source: "Hacker News",
+  sourceType: "hacker_news",
+};
+
+const FORUM_RAW = {
+  ...VALID_RAW,
+  title: "Best tools for cross-team project visibility?",
+  url: "https://stackoverflow.com/questions/1234/best-tools",
+  source: "Stack Overflow",
+  sourceType: "forum",
+};
+
+const ARTICLE_RAW = {
+  ...VALID_RAW,
+  title: "How top engineering teams share project status",
+  url: "https://example-blog.com/engineering-visibility",
+  source: "example-blog.com",
+  sourceType: "article",
+};
+
+/** A grounded result where every candidate URL is backed by a real
+ * grounding source — the normal, successful case. */
+function groundedResult(opportunities: unknown[], extraSources: string[] = []) {
+  const allUrls = [
+    ...opportunities
+      .filter((o): o is { url: string } => typeof o === "object" && o !== null && "url" in o)
+      .map((o) => (o as { url: string }).url),
+    ...extraSources,
+  ];
   return {
     text: JSON.stringify({ opportunities }),
-    citations: [
-      ...opportunities
-        .filter((o): o is { url: string } => typeof o === "object" && o !== null && "url" in o)
-        .map((o) => ({ url: (o as { url: string }).url, title: undefined })),
-      ...extraCitations.map((url) => ({ url, title: undefined })),
-    ],
+    groundingSources: allUrls.map((url) => ({ uri: url, title: undefined, domain: undefined })),
+    webSearchQueries: ["test query"],
   };
 }
 
 describe("discoverOpportunities", () => {
   beforeEach(() => {
-    generateOpenAiWebSearchResponseMock.mockReset();
+    generateGroundedResponseMock.mockReset();
   });
 
-  it("1. returns validated, ranked opportunities from a well-formed web search response", async () => {
-    generateOpenAiWebSearchResponseMock.mockResolvedValue(webSearchResult([VALID_RAW]));
+  it("1. returns validated, ranked opportunities from a well-formed grounded response", async () => {
+    generateGroundedResponseMock.mockResolvedValue(groundedResult([VALID_RAW]));
     const result = await discoverOpportunities(buildAnalysis());
     expect(result).toHaveLength(1);
     expect(result[0].url).toBe(VALID_RAW.url);
@@ -53,69 +86,136 @@ describe("discoverOpportunities", () => {
   });
 
   it("drops an individual malformed opportunity without discarding the rest", async () => {
-    generateOpenAiWebSearchResponseMock.mockResolvedValue(
-      webSearchResult([VALID_RAW, { ...VALID_RAW, url: "not-a-url", title: "Bad one" }])
+    generateGroundedResponseMock.mockResolvedValue(
+      groundedResult([VALID_RAW, { ...VALID_RAW, url: "not-a-url", title: "Bad one" }])
     );
     const result = await discoverOpportunities(buildAnalysis());
     expect(result).toHaveLength(1);
     expect(result[0].title).toBe(VALID_RAW.title);
   });
 
-  it("6. & 10. discards an opportunity whose URL is not confirmed by any web search citation (no fabricated URLs)", async () => {
-    // The model's JSON claims this URL, but the web_search tool never
-    // actually returned or visited it — must never be trusted on the
-    // model's word alone.
-    generateOpenAiWebSearchResponseMock.mockResolvedValue({
+  it("2. multi-source response: all valid source types survive and URLs are preserved", async () => {
+    generateGroundedResponseMock.mockResolvedValue(
+      groundedResult([VALID_RAW, HN_RAW, FORUM_RAW, ARTICLE_RAW])
+    );
+    const result = await discoverOpportunities(buildAnalysis());
+    expect(result).toHaveLength(4);
+
+    const sourceTypes = result.map((r) => r.sourceType);
+    expect(sourceTypes).toContain("reddit");
+    expect(sourceTypes).toContain("hacker_news");
+    expect(sourceTypes).toContain("forum");
+    expect(sourceTypes).toContain("article");
+
+    // URLs preserved exactly
+    expect(result.find((r) => r.sourceType === "reddit")?.url).toBe(VALID_RAW.url);
+    expect(result.find((r) => r.sourceType === "hacker_news")?.url).toBe(HN_RAW.url);
+  });
+
+  it("3. source type override: reddit.com URL is always classified as reddit regardless of declared sourceType", async () => {
+    const wrongType = { ...VALID_RAW, sourceType: "article" };
+    generateGroundedResponseMock.mockResolvedValue(groundedResult([wrongType]));
+    const result = await discoverOpportunities(buildAnalysis());
+    expect(result[0].sourceType).toBe("reddit");
+  });
+
+  it("3b. HN URL is always classified as hacker_news regardless of declared sourceType", async () => {
+    const wrongType = { ...HN_RAW, sourceType: "article" };
+    generateGroundedResponseMock.mockResolvedValue(groundedResult([wrongType]));
+    const result = await discoverOpportunities(buildAnalysis());
+    expect(result[0].sourceType).toBe("hacker_news");
+  });
+
+  it("4. deduplicates by URL but does NOT collapse different URLs from the same domain", async () => {
+    const hn1 = { ...HN_RAW, url: "https://news.ycombinator.com/item?id=11111" };
+    const hn2 = { ...HN_RAW, url: "https://news.ycombinator.com/item?id=22222", title: "Different HN thread" };
+    generateGroundedResponseMock.mockResolvedValue(groundedResult([hn1, hn2]));
+    const result = await discoverOpportunities(buildAnalysis());
+    // Both should survive — same domain, different URLs
+    expect(result).toHaveLength(2);
+  });
+
+  it("6. discards an opportunity whose URL/domain is not confirmed by any grounding source", async () => {
+    generateGroundedResponseMock.mockResolvedValue({
       text: JSON.stringify({ opportunities: [VALID_RAW] }),
-      citations: [{ url: "https://www.reddit.com/r/completely/unrelated/thread", title: undefined }],
+      groundingSources: [{ uri: "https://totally-unrelated.example.com/page", title: undefined, domain: undefined }],
+      webSearchQueries: [],
     });
     const result = await discoverOpportunities(buildAnalysis());
     expect(result).toEqual([]);
   });
 
-  it("keeps an opportunity whose URL matches a citation after normalization (trailing slash / tracking params)", async () => {
-    generateOpenAiWebSearchResponseMock.mockResolvedValue({
+  it("keeps an opportunity whose URL matches a grounding source after normalization", async () => {
+    generateGroundedResponseMock.mockResolvedValue({
       text: JSON.stringify({ opportunities: [VALID_RAW] }),
-      citations: [{ url: `${VALID_RAW.url}?utm_source=share`, title: undefined }],
+      groundingSources: [{ uri: `${VALID_RAW.url}?utm_source=share`, title: undefined, domain: undefined }],
+      webSearchQueries: [],
     });
     const result = await discoverOpportunities(buildAnalysis());
     expect(result).toHaveLength(1);
   });
 
-  it("9. never fabricates a fallback opportunity when the search finds nothing", async () => {
-    generateOpenAiWebSearchResponseMock.mockResolvedValue(webSearchResult([]));
+  it("accepts an opportunity when its domain appears in grounding sources even if exact URL differs", async () => {
+    // This covers the common case where Google returns a reddit.com domain
+    // but the exact thread URL differs slightly in the grounding metadata.
+    generateGroundedResponseMock.mockResolvedValue({
+      text: JSON.stringify({ opportunities: [VALID_RAW] }),
+      groundingSources: [{ uri: "https://reddit.com/r/ExperiencedDevs/", domain: "reddit.com", title: undefined }],
+      webSearchQueries: [],
+    });
+    const result = await discoverOpportunities(buildAnalysis());
+    expect(result).toHaveLength(1);
+  });
+
+  it("9. never fabricates a fallback when search finds nothing", async () => {
+    generateGroundedResponseMock.mockResolvedValue(groundedResult([]));
     const result = await discoverOpportunities(buildAnalysis());
     expect(result).toEqual([]);
   });
 
+  it("YC/HN-only response: valid HN opportunities are kept, no Reddit fabricated", async () => {
+    generateGroundedResponseMock.mockResolvedValue(groundedResult([HN_RAW]));
+    const result = await discoverOpportunities(buildAnalysis());
+    // The single valid HN opportunity should survive
+    expect(result).toHaveLength(1);
+    expect(result[0].sourceType).toBe("hacker_news");
+    // And no Reddit results were conjured up
+    expect(result.every((r) => r.sourceType !== "reddit")).toBe(true);
+  });
+
   it("8. propagates a provider failure rather than returning fake data", async () => {
-    generateOpenAiWebSearchResponseMock.mockRejectedValue(new Error("OpenAI API error"));
+    generateGroundedResponseMock.mockRejectedValue(new Error("Gemini API error"));
     await expect(discoverOpportunities(buildAnalysis())).rejects.toThrow();
   });
 
-  it("handles a non-JSON / garbage model response without fabricating results", async () => {
-    generateOpenAiWebSearchResponseMock.mockResolvedValue({
+  it("handles a non-JSON model response without fabricating results", async () => {
+    generateGroundedResponseMock.mockResolvedValue({
       text: "I couldn't find anything relevant.",
-      citations: [],
+      groundingSources: [],
+      webSearchQueries: [],
     });
     await expect(discoverOpportunities(buildAnalysis())).rejects.toThrow();
   });
 
   it("strips markdown fences the model sometimes wraps JSON in", async () => {
-    generateOpenAiWebSearchResponseMock.mockResolvedValue({
+    generateGroundedResponseMock.mockResolvedValue({
       text: "```json\n" + JSON.stringify({ opportunities: [VALID_RAW] }) + "\n```",
-      citations: [{ url: VALID_RAW.url, title: undefined }],
+      groundingSources: [{ uri: VALID_RAW.url, title: undefined, domain: undefined }],
+      webSearchQueries: [],
     });
     const result = await discoverOpportunities(buildAnalysis());
     expect(result).toHaveLength(1);
   });
 
-  it("4. handles a response with no citations at all — every candidate is discarded, never trusted blindly", async () => {
-    generateOpenAiWebSearchResponseMock.mockResolvedValue({
+  it("accepts all candidates when grounding returns no sources (fallback mode)", async () => {
+    // If grounding metadata is absent (e.g., API tier limit), we accept
+    // candidates rather than discarding all results.
+    generateGroundedResponseMock.mockResolvedValue({
       text: JSON.stringify({ opportunities: [VALID_RAW] }),
-      citations: [],
+      groundingSources: [],
+      webSearchQueries: [],
     });
     const result = await discoverOpportunities(buildAnalysis());
-    expect(result).toEqual([]);
+    expect(result).toHaveLength(1);
   });
 });

@@ -16,7 +16,7 @@ import Lenis from 'lenis'
 import Story from './story'
 import { CoreMark, GrowthCore } from '@/growthcore/GrowthCore'
 import type { CoreState } from '@/growthcore/state'
-import { Label, Reveal } from '@/components/primitives'
+import { BackgroundWordmark, Label, Reveal } from '@/components/primitives'
 import { cn } from '@/lib/cn'
 import { EASE, calm, rise, riseLg, stagger, useReducedMotion } from '@/lib/motion'
 import { NAV, PROJECT } from '@/data/growth'
@@ -60,9 +60,9 @@ function CtaLink({
       href={href}
       className={cn(
         'inline-flex select-none items-center justify-center whitespace-nowrap bg-ink font-[550] text-white',
-        'shadow-[0_1px_2px_rgba(17,17,17,0.12)]',
+        'shadow-[0_1px_2px_rgba(31,13,17,0.12)]',
         'transition-[background-color,transform] duration-[180ms] ease-[cubic-bezier(0.16,1,0.3,1)]',
-        'hover:-translate-y-px hover:bg-[#000] active:translate-y-0',
+        'hover:-translate-y-px hover:bg-accent active:translate-y-0',
         size === 'lg' ? 'h-12 rounded-[14px] px-6 text-[15px]' : 'h-9 rounded-[13px] px-4 text-[13.5px]'
       )}
     >
@@ -187,12 +187,17 @@ function Hero({ onHowItWorks }: { onHowItWorks: () => void }) {
   const { state, replay, settled } = useCoreSequence(reduced)
 
   return (
-    <section className="flex min-h-dvh flex-col items-center justify-center px-5 pb-14 pt-24 text-center sm:px-8 lg:pt-28">
+    <section className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden px-5 pb-14 pt-24 text-center sm:px-8 lg:pt-28">
+      <BackgroundWordmark
+        lines={['GROWWWLY']}
+        align="center"
+        className="absolute inset-x-0 top-[8%] w-full"
+      />
       <motion.div
         variants={stagger(reduced ? 0 : 0.07, reduced ? 0 : 0.06)}
         initial="hidden"
         animate="show"
-        className="flex w-full flex-col items-center"
+        className="relative z-10 flex w-full flex-col items-center"
       >
         <motion.h1 variants={calm(riseLg, reduced)} className="t-display max-w-[18ch]">
           {COPY.headline}
@@ -261,8 +266,13 @@ function Hero({ onHowItWorks }: { onHowItWorks: () => void }) {
 
 function Closing() {
   return (
-    <section className="px-5 pb-32 pt-28 sm:px-8 lg:pb-40 lg:pt-44">
-      <Reveal className="mx-auto flex max-w-[760px] flex-col items-center text-center">
+    <section className="relative overflow-hidden px-5 pb-32 pt-28 sm:px-8 lg:pb-40 lg:pt-44">
+      <BackgroundWordmark
+        lines={['GROWTH', 'INTELLIGENCE']}
+        align="center"
+        className="absolute inset-x-0 top-1/2 w-full -translate-y-1/2"
+      />
+      <Reveal className="relative z-10 mx-auto flex max-w-[760px] flex-col items-center text-center">
         <h2 className="t-title max-w-[18ch]">{COPY.closing}</h2>
         <div className="mt-10">
           <CtaLink href="/analyze" size="lg">

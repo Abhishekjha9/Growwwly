@@ -2,60 +2,78 @@
 
 /* ============================================================
    GROWWWLY — DESIGN TOKENS
-   Quiet first. Intelligent second. Beautiful through restraint.
+   Deep burgundy and pale blush pink, carried from the brand's
+   presentation identity into the product. Editorial, condensed,
+   confident — quiet everywhere it isn't making a point.
    ============================================================ */
 
 @theme {
-  /* --- Surfaces --------------------------------------------------- */
-  --color-canvas: #fafaf8;
+  /* --- Surfaces (light — the primary reading surface) ---------------- */
+  --color-canvas: #fbf2ef;
   --color-surface: #ffffff;
-  --color-sunk: #f4f4f1;
+  --color-sunk: #f6e9e6;
   --color-raised: #ffffff;
 
-  /* --- Ink ---------------------------------------------------------- */
-  --color-ink: #111111;
-  --color-ink-2: #3d3d3b;
-  --color-muted: #6f6f6f;
-  --color-faint: #9b9b97;
-  --color-ghost: #c4c4bf;
+  /* --- Ink (light surfaces) — near-black with a burgundy undertone ---- */
+  --color-ink: #1f0d11;
+  --color-ink-2: #4a262c;
+  --color-muted: #7c5259;
+  --color-faint: #a9797f;
+  --color-ghost: #d9bfc1;
 
-  /* --- Lines -------------------------------------------------------- */
-  --color-hairline: #e9e9e6;
-  --color-hairline-strong: #dcdcd7;
+  /* --- Lines (light surfaces) ----------------------------------------- */
+  --color-hairline: #edddda;
+  --color-hairline-strong: #dec1be;
 
-  /* --- Accent (restrained blue — use sparingly) ---------------------- */
-  --color-accent: #4f6bff;
-  --color-accent-hover: #3f59ee;
-  --color-accent-soft: #eef1ff;
-  --color-accent-line: #d5dcff;
-  --color-accent-ink: #3247c4;
+  /* --- Accent — deep burgundy/wine, the defining Growwwly color ------- */
+  --color-accent: #8c1235;
+  --color-accent-hover: #6e0e2a;
+  --color-accent-soft: #f7e2e6;
+  --color-accent-line: #e9c3cb;
+  --color-accent-ink: #6b0f29;
 
-  /* --- Semantic (muted, never candy) --------------------------------- */
+  /* --- Dark shell — app navigation and deliberate statement moments --- */
+  --color-shell: #170609;
+  --color-shell-raised: #2a0f14;
+  --color-shell-ink: #f5dede;
+  --color-shell-ink-2: #e7c9c9;
+  --color-shell-muted: #b98f94;
+  --color-shell-faint: #8a6266;
+  --color-shell-accent: #e8536f;
+
+  /* --- Semantic (muted, restrained — functional, not decorative) ------ */
   --color-positive: #4f9d69;
   --color-positive-soft: #eef5f0;
   --color-warning: #b8853a;
   --color-warning-soft: #f8f3ea;
-  --color-negative: #c0605a;
-  --color-negative-soft: #faeeed;
+  --color-negative: #c1443f;
+  --color-negative-soft: #fbeeeb;
 
-  /* --- Radius -------------------------------------------------------- */
+  /* --- Radius ---------------------------------------------------------- */
   --radius-pill: 999px;
-  --radius-sm: 10px;
-  --radius-md: 14px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
-  --radius-2xl: 24px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 14px;
+  --radius-xl: 16px;
+  --radius-2xl: 18px;
 
-  /* --- Shadow (almost flat) ------------------------------------------ */
-  --shadow-hair: 0 1px 2px rgba(17, 17, 17, 0.04);
-  --shadow-soft: 0 1px 2px rgba(17, 17, 17, 0.03), 0 6px 20px -10px rgba(17, 17, 17, 0.1);
-  --shadow-lift: 0 1px 2px rgba(17, 17, 17, 0.04), 0 14px 40px -18px rgba(17, 17, 17, 0.16);
-  --shadow-panel: 0 1px 3px rgba(17, 17, 17, 0.05), 0 32px 70px -30px rgba(17, 17, 17, 0.22);
+  /* --- Shadow (almost flat, burgundy-tinted) --------------------------- */
+  --shadow-hair: 0 1px 2px rgba(31, 13, 17, 0.05);
+  --shadow-soft: 0 1px 2px rgba(31, 13, 17, 0.04), 0 6px 20px -10px rgba(31, 13, 17, 0.14);
+  --shadow-lift: 0 1px 2px rgba(31, 13, 17, 0.05), 0 14px 40px -18px rgba(31, 13, 17, 0.2);
+  --shadow-panel: 0 1px 3px rgba(31, 13, 17, 0.06), 0 32px 70px -30px rgba(31, 13, 17, 0.28);
 
-  /* --- Type ---------------------------------------------------------- */
+  /* --- Type ------------------------------------------------------------
+     Two faces, deliberately far apart. Big Shoulders Display is tall,
+     condensed and editorial — reserved for titles, hero statements,
+     section headers and the oversized wordmark motif. Inter stays the
+     UI/body face everywhere else: nav, buttons, cards, metrics, forms.
+     The contrast between the two is the identity, not an accident. */
   --font-sans:
     var(--font-inter), 'Inter var', 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text',
     'Segoe UI', system-ui, sans-serif;
+  --font-display:
+    var(--font-display-src), 'Arial Narrow', 'Oswald', sans-serif;
   --font-mono: 'SF Mono', 'Berkeley Mono', ui-monospace, 'JetBrains Mono', Menlo, monospace;
 
   /* --- Motion -------------------------------------------------------- */
@@ -83,6 +101,7 @@
   }
 
   body {
+    position: relative;
     margin: 0;
     background-color: var(--color-canvas);
     color: var(--color-ink);
@@ -92,6 +111,20 @@
     line-height: 1.5;
     letter-spacing: -0.011em;
     overscroll-behavior-y: none;
+  }
+
+  /* A very subtle grain — near-invisible at normal viewing distance,
+     never allowed to touch readability. Pure CSS/SVG, no image asset. */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 2147483647;
+    pointer-events: none;
+    opacity: 0.028;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 180px 180px;
   }
 
   /* Optical tightening: big type needs negative tracking */
@@ -149,28 +182,37 @@
    ============================================================ */
 
 @layer components {
+  /* -- Display face: condensed, tall, editorial. Titles and statements. */
   .t-display {
-    font-size: clamp(2.75rem, 7vw, 5.25rem);
-    line-height: 0.98;
-    letter-spacing: -0.045em;
-    font-weight: 600;
+    font-family: var(--font-display);
+    font-weight: 800;
+    text-transform: uppercase;
+    font-size: clamp(3rem, 9vw, 6.75rem);
+    line-height: 0.86;
+    letter-spacing: -0.008em;
   }
 
   .t-title {
-    font-size: clamp(2rem, 4.2vw, 3.25rem);
-    line-height: 1.04;
-    letter-spacing: -0.038em;
-    font-weight: 600;
+    font-family: var(--font-display);
+    font-weight: 800;
+    text-transform: uppercase;
+    font-size: clamp(2.1rem, 5.4vw, 3.75rem);
+    line-height: 0.9;
+    letter-spacing: -0.006em;
   }
 
   .t-h1 {
-    font-size: clamp(1.75rem, 2.6vw, 2.25rem);
-    line-height: 1.1;
-    letter-spacing: -0.032em;
-    font-weight: 600;
+    font-family: var(--font-display);
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: clamp(1.6rem, 3.1vw, 2.5rem);
+    line-height: 0.98;
+    letter-spacing: -0.004em;
   }
 
+  /* -- UI face (Inter) from here down — the "clean" half of the pair. */
   .t-h2 {
+    font-family: var(--font-sans);
     font-size: 1.3125rem;
     line-height: 1.25;
     letter-spacing: -0.024em;
@@ -178,6 +220,7 @@
   }
 
   .t-h3 {
+    font-family: var(--font-sans);
     font-size: 1.0625rem;
     line-height: 1.35;
     letter-spacing: -0.017em;
@@ -205,7 +248,7 @@
     color: var(--color-muted);
   }
 
-  /* Tiny contextual label — the ONLY place uppercase is allowed */
+  /* Tiny contextual label — the ONLY other place uppercase is allowed */
   .t-label {
     font-size: 0.6875rem;
     line-height: 1;
@@ -229,6 +272,30 @@
     letter-spacing: -0.055em;
     font-weight: 550;
     font-variant-numeric: tabular-nums;
+  }
+
+  /* -- Oversized background wordmark motif — editorial type used as a
+     near-invisible backdrop, never over content it would compete with. */
+  .t-mark {
+    font-family: var(--font-display);
+    font-weight: 800;
+    text-transform: uppercase;
+    line-height: 0.8;
+    letter-spacing: -0.01em;
+    font-size: clamp(5rem, 22vw, 18rem);
+  }
+
+  /* Same motif, scaled for a half-width column rather than the full
+     viewport — e.g. the /analyze left column. Sized off container width
+     via cqw would be ideal; vw is close enough at the widths this actually
+     renders at and avoids adding a container-query wrapper everywhere. */
+  .t-mark-sm {
+    font-family: var(--font-display);
+    font-weight: 800;
+    text-transform: uppercase;
+    line-height: 0.8;
+    letter-spacing: -0.01em;
+    font-size: clamp(2.75rem, 9vw, 6rem);
   }
 }
 

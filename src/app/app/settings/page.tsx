@@ -56,12 +56,12 @@ function Switch({ checked, onChange }: { checked: boolean; onChange: (next: bool
       onClick={() => onChange(!checked)}
       className={cn(
         'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-[180ms] ease-[cubic-bezier(0.16,1,0.3,1)]',
-        checked ? 'bg-accent' : 'bg-[rgba(17,17,17,0.16)] hover:bg-[rgba(17,17,17,0.24)]'
+        checked ? 'bg-accent' : 'bg-[rgba(31,13,17,0.16)] hover:bg-[rgba(31,13,17,0.24)]'
       )}
     >
       <motion.span
         aria-hidden
-        className="absolute left-[2px] h-4 w-4 rounded-full bg-white shadow-[0_1px_2px_rgba(17,17,17,0.24)]"
+        className="absolute left-[2px] h-4 w-4 rounded-full bg-white shadow-[0_1px_2px_rgba(31,13,17,0.24)]"
         animate={{ x: checked ? 16 : 0 }}
         transition={reduced ? { duration: 0 } : T.micro}
       />

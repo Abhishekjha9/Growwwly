@@ -63,10 +63,10 @@ const BTN_BASE =
   'disabled:opacity-40 disabled:pointer-events-none select-none'
 
 const BTN_VARIANT: Record<ButtonVariant, string> = {
-  primary: 'bg-ink text-white hover:bg-[#000] shadow-[0_1px_2px_rgba(17,17,17,0.12)]',
+  primary: 'bg-ink text-white hover:bg-accent shadow-[0_1px_2px_rgba(31,13,17,0.14)]',
   secondary:
-    'bg-surface text-ink border border-hairline hover:border-hairline-strong hover:bg-[#fcfcfa] shadow-[0_1px_2px_rgba(17,17,17,0.03)]',
-  ghost: 'text-muted hover:text-ink hover:bg-[rgba(17,17,17,0.04)]',
+    'bg-surface text-ink border border-hairline hover:border-hairline-strong hover:bg-[#fdf6f4] shadow-[0_1px_2px_rgba(31,13,17,0.04)]',
+  ghost: 'text-muted hover:text-ink hover:bg-[rgba(31,13,17,0.045)]',
   quiet: 'text-accent hover:bg-accent-soft',
 }
 
@@ -179,6 +179,62 @@ export function Confidence({ value, className }: { value: number; className?: st
       </svg>
       <span className="tnum">{value}% confidence</span>
     </span>
+  )
+}
+
+/* ============================================================
+   PROGRESS RING — a large circular stage indicator for the
+   analysis loading screen. Fills between real, named stages —
+   never a fabricated smooth/precise percentage.
+   ============================================================ */
+
+export function ProgressRing({
+  value,
+  size = 216,
+  strokeWidth = 3,
+  className,
+  children,
+}: {
+  /** 0–100 */
+  value: number
+  size?: number
+  strokeWidth?: number
+  className?: string
+  children?: ReactNode
+}) {
+  const reduced = useReducedMotion()
+  const r = (size - strokeWidth) / 2
+  const c = 2 * Math.PI * r
+  return (
+    <div
+      className={cn('relative inline-flex shrink-0 items-center justify-center', className)}
+      style={{ width: size, height: size }}
+    >
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90" aria-hidden>
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke="var(--color-hairline)"
+          strokeWidth={strokeWidth}
+        />
+        <motion.circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke="var(--color-accent)"
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={c}
+          initial={false}
+          animate={{ strokeDashoffset: c * (1 - clamp(value, 0, 100) / 100) }}
+          transition={{ duration: reduced ? 0 : 0.7, ease: EASE.out }}
+        />
+      </svg>
+      {children && <div className="absolute inset-0 flex items-center justify-center">{children}</div>}
+    </div>
   )
 }
 
@@ -376,7 +432,7 @@ export function Pill({
         'inline-flex h-7 items-center rounded-full px-3 text-[12.5px] font-[500] transition-colors duration-[180ms]',
         active
           ? 'bg-ink text-white'
-          : 'bg-[rgba(17,17,17,0.045)] text-muted hover:text-ink hover:bg-[rgba(17,17,17,0.07)]',
+          : 'bg-[rgba(31,13,17,0.045)] text-muted hover:text-ink hover:bg-[rgba(31,13,17,0.075)]',
         className
       )}
     >
@@ -442,6 +498,85 @@ export function Reveal({
     >
       {children}
     </motion.div>
+  )
+}
+
+/* ============================================================
+   BACKGROUND WORDMARK — oversized editorial type used as a near-
+   invisible backdrop. Never opaque over content; always
+   pointer-events-none; never allowed to hurt readability.
+   ============================================================ */
+
+export function BackgroundWordmark({
+  lines,
+  className,
+  tone = 'ink',
+  align = 'start',
+  size = 'default',
+}: {
+  lines: string[]
+  className?: string
+  /** 'ink' for light surfaces, 'shell' for the dark shell/statement panels. */
+  tone?: 'ink' | 'shell'
+  align?: 'start' | 'center' | 'end'
+  /** 'default' sizes off the viewport (full-width hero/statement use).
+   * 'compact' sizes for a half-width column context, e.g. a two-column
+   * split — 'default' would overflow and clip mid-word there. */
+  size?: 'default' | 'compact'
+}) {
+  return (
+    <div
+      aria-hidden
+      className={cn(
+        'pointer-events-none select-none overflow-hidden',
+        align === 'center' && 'text-center',
+        align === 'end' && 'text-right',
+        className
+      )}
+    >
+      {lines.map((line, i) => (
+        <div
+          key={i}
+          className={cn(
+            size === 'compact' ? 't-mark-sm' : 't-mark',
+            tone === 'shell' ? 'text-shell-ink/[0.05]' : 'text-ink/[0.035]'
+          )}
+        >
+          {line}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/* ============================================================
+   STATEMENT — a full-bleed dark burgundy block for decisive
+   moments: the one thing on a page that outweighs everything
+   else. Used sparingly — this is the loudest surface in the
+   system, not the default one.
+   ============================================================ */
+
+export function Statement({
+  children,
+  className,
+  wordmark,
+}: {
+  children: ReactNode
+  className?: string
+  /** Background wordmark lines rendered behind the content, if any. */
+  wordmark?: string[]
+}) {
+  return (
+    <section className={cn('relative overflow-hidden rounded-2xl bg-shell', className)}>
+      {wordmark && (
+        <BackgroundWordmark
+          lines={wordmark}
+          tone="shell"
+          className="absolute -bottom-[6%] left-1/2 w-[140%] -translate-x-1/2"
+        />
+      )}
+      <div className="relative">{children}</div>
+    </section>
   )
 }
 

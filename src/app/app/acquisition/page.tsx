@@ -10,8 +10,9 @@
 'use client'
 
 import { EmptyState } from '@/components/EmptyState'
-import { Label, Reveal } from '@/components/primitives'
+import { Label, Reveal, SignalBar } from '@/components/primitives'
 import { ChannelResultRow } from '@/components/analyze/ChannelResultRow'
+import { CHANNEL_LABELS } from '@/lib/growth/constants'
 import { useAnalysis } from '@/lib/analysis-store'
 
 export default function AcquisitionPage() {
@@ -42,6 +43,31 @@ export default function AcquisitionPage() {
       </Reveal>
 
       <Reveal>
+        <section aria-labelledby="sec-opportunity">
+          <h2 id="sec-opportunity" className="t-h1 mb-4">
+            Channel opportunity
+          </h2>
+          <div className="space-y-4">
+            {rankedChannels.map((c, i) => (
+              <div key={c.channel} className="flex items-center gap-4">
+                <span className="w-[104px] shrink-0 t-meta text-ink sm:w-[132px]">
+                  {CHANNEL_LABELS[c.channel]}
+                </span>
+                <SignalBar
+                  value={c.opportunityScore}
+                  tone={i === 0 ? 'accent' : 'muted'}
+                  className="flex-1"
+                />
+                <span className="w-6 shrink-0 text-right tnum t-meta font-[550] text-ink">
+                  {c.opportunityScore}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      </Reveal>
+
+      <Reveal className="mt-16 lg:mt-24">
         <section>
           <div>
             {rankedChannels.map((c, i) => (

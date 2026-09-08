@@ -56,19 +56,19 @@ export function GrowthCore({
         <defs>
           <linearGradient id="gc-face" x1="0.2" y1="0" x2="0.85" y2="1">
             <stop offset="0%" stopColor="#FFFFFF" />
-            <stop offset="52%" stopColor="#F4F4F1" />
-            <stop offset="100%" stopColor="#E7E8E6" />
+            <stop offset="52%" stopColor="#F8ECEA" />
+            <stop offset="100%" stopColor="#EBD9D6" />
           </linearGradient>
           <radialGradient id="gc-shadow" cx="0.5" cy="0.5" r="0.5">
-            <stop offset="0%" stopColor="rgba(17,17,17,0.20)" />
-            <stop offset="55%" stopColor="rgba(17,17,17,0.06)" />
-            <stop offset="100%" stopColor="rgba(17,17,17,0)" />
+            <stop offset="0%" stopColor="rgba(31,13,17,0.20)" />
+            <stop offset="55%" stopColor="rgba(31,13,17,0.06)" />
+            <stop offset="100%" stopColor="rgba(31,13,17,0)" />
           </radialGradient>
         </defs>
 
         <ellipse cx="50" cy="72.5" rx="19" ry="4.6" fill="url(#gc-shadow)" />
 
-        <g stroke="#B9BAC4" strokeWidth="0.32" fill="none">
+        <g stroke="#C7A6A9" strokeWidth="0.32" fill="none">
           {pts.map((p, i) => (
             <motion.line
               key={`spoke-${p.def.id}`}
@@ -83,7 +83,7 @@ export function GrowthCore({
           ))}
         </g>
 
-        <g stroke="#4F6BFF" strokeWidth="0.28" fill="none">
+        <g stroke="#8C1235" strokeWidth="0.28" fill="none">
           {SIGNAL_LINKS.map(([a, b], i) => (
             <motion.line
               key={`link-${a}-${b}`}
@@ -113,7 +113,7 @@ export function GrowthCore({
             height="27"
             rx="9.4"
             fill="url(#gc-face)"
-            stroke="#DFDFDA"
+            stroke="#DEC1BE"
             strokeWidth="0.4"
           />
           <rect
@@ -123,7 +123,7 @@ export function GrowthCore({
             height="27"
             rx="9.4"
             fill="none"
-            stroke="#4F6BFF"
+            stroke="#8C1235"
             strokeWidth="0.55"
             strokeOpacity={state === 'decision' ? 0.5 : 0.2}
           />
@@ -142,7 +142,7 @@ export function GrowthCore({
                 : shape.signalOpacity,
             }}
             transition={{ duration: play ? 0.9 : 0, ease: EASE.out, delay: play ? i * 0.03 : 0 }}
-            fill={p.isWinner && shape.emphasis > 0.3 ? '#4F6BFF' : '#C9C9C3'}
+            fill={p.isWinner && shape.emphasis > 0.3 ? '#8C1235' : '#D9BFC1'}
           />
         ))}
       </svg>
@@ -180,16 +180,28 @@ export function GrowthCore({
    CoreMark — the logo. The same object, reduced to 20px.
    ------------------------------------------------------------------ */
 
-export function CoreMark({ size = 22, className }: { size?: number; className?: string }) {
+export function CoreMark({
+  size = 22,
+  className,
+  tone = 'ink',
+}: {
+  size?: number
+  className?: string
+  /** 'ink' for light surfaces, 'shell' for the dark shell/statement panels. */
+  tone?: 'ink' | 'shell'
+}) {
+  const core = tone === 'shell' ? '#F5DEDE' : '#1F0D11'
+  const satellite = tone === 'shell' ? '#8A6266' : '#D9BFC1'
+  const accent = tone === 'shell' ? '#E8536F' : '#8C1235'
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" className={cn('shrink-0', className)} aria-hidden>
-      <rect x="7" y="7" width="10" height="10" rx="3.4" fill="#111111" />
-      <circle cx="12" cy="2.6" r="1.5" fill="#4F6BFF" />
-      <circle cx="20.4" cy="8.4" r="1.15" fill="#C9C9C3" />
-      <circle cx="3.6" cy="8.4" r="1.15" fill="#C9C9C3" />
-      <circle cx="18.2" cy="19.4" r="1.15" fill="#C9C9C3" />
-      <circle cx="5.8" cy="19.4" r="1.15" fill="#C9C9C3" />
-      <g stroke="#C9C9C3" strokeWidth="0.7" opacity="0.55">
+      <rect x="7" y="7" width="10" height="10" rx="3.4" fill={core} />
+      <circle cx="12" cy="2.6" r="1.5" fill={accent} />
+      <circle cx="20.4" cy="8.4" r="1.15" fill={satellite} />
+      <circle cx="3.6" cy="8.4" r="1.15" fill={satellite} />
+      <circle cx="18.2" cy="19.4" r="1.15" fill={satellite} />
+      <circle cx="5.8" cy="19.4" r="1.15" fill={satellite} />
+      <g stroke={satellite} strokeWidth="0.7" opacity="0.55">
         <path d="M12 5.6 V7" />
         <path d="M18.6 9.2 L16.4 10.4" />
         <path d="M5.4 9.2 L7.6 10.4" />

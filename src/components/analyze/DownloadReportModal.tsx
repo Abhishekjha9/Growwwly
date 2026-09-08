@@ -101,7 +101,7 @@ function ThemeOption({
         'group relative flex flex-col gap-2.5 rounded-2xl border p-3 text-left transition-colors duration-150',
         selected
           ? 'border-accent bg-accent-soft/40'
-          : 'border-hairline hover:border-hairline-strong hover:bg-[rgba(17,17,17,0.015)]'
+          : 'border-hairline hover:border-hairline-strong hover:bg-[rgba(31,13,17,0.015)]'
       )}
     >
       <ThemePreview theme={option.theme} />
@@ -155,7 +155,7 @@ export function DownloadReportModal({
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(17,17,17,0.32)] p-5 backdrop-blur-[2px]"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(31,13,17,0.32)] p-5 backdrop-blur-[2px]"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}

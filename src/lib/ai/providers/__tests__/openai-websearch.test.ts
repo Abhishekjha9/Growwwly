@@ -184,7 +184,9 @@ describe("generateOpenAiWebSearchResponse", () => {
       new APIError(500, { error: { message: "boom" } }, "boom", new Headers())
     );
 
-    await expect(generateOpenAiWebSearchResponse(baseOptions)).rejects.toThrow(/failed/i);
+    await expect(generateOpenAiWebSearchResponse(baseOptions)).rejects.toThrow(
+      /server error/i
+    );
     expect(createMock).toHaveBeenCalledTimes(1);
   });
 

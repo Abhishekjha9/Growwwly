@@ -4,7 +4,8 @@
  * The highest-leverage action comes from the deterministic Growth
  * Intelligence Engine (`@/lib/growth`), not from Gemini — it's the one
  * thing on this page that isn't a raw AI signal or a direct read of the
- * founder's own answers.
+ * founder's own answers. It gets the loudest surface in the system: the
+ * dark Statement panel, not another card among equals.
  */
 
 'use client'
@@ -12,23 +13,32 @@
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { EmptyState } from '@/components/EmptyState'
-import { Confidence, Label, ProvenanceTag } from '@/components/primitives'
+import { Button, Confidence, Label, ProvenanceTag, Statement } from '@/components/primitives'
 import { DownloadReportButton } from '@/components/analyze/DownloadReportButton'
-import { actionSubjectLabel } from '@/lib/growth/constants'
+import { actionSubjectLabel, CHANNEL_LABELS } from '@/lib/growth/constants'
 import { calm, rise, riseLg, stagger, useReducedMotion } from '@/lib/motion'
 import { useAnalysis } from '@/lib/analysis-store'
 
-function Stat({ value, label }: { value: string; label: string }) {
+function Stat({ value, label, tone = 'ink' }: { value: string; label: string; tone?: 'ink' | 'shell' }) {
   return (
     <div>
-      <div className="t-h3 text-ink">{value}</div>
-      <Label className="mt-2.5">{label}</Label>
+      <div className={tone === 'shell' ? 't-h3 text-shell-ink' : 't-h3 text-ink'}>{value}</div>
+      <Label className={tone === 'shell' ? 'mt-2.5 text-shell-faint' : 'mt-2.5'}>{label}</Label>
     </div>
   )
 }
 
-function StatRule() {
-  return <span aria-hidden className="hidden h-9 w-px shrink-0 bg-hairline sm:block" />
+function StatRule({ tone = 'ink' }: { tone?: 'ink' | 'shell' }) {
+  return (
+    <span
+      aria-hidden
+      className={
+        tone === 'shell'
+          ? 'hidden h-9 w-px shrink-0 bg-[rgba(245,222,222,0.16)] sm:block'
+          : 'hidden h-9 w-px shrink-0 bg-hairline sm:block'
+      }
+    />
+  )
 }
 
 const DECISION_TYPE_COPY: Record<'commit' | 'test', string> = {
@@ -52,6 +62,8 @@ export default function Overview() {
   const { product, growthContext, constraints, confidence } = productIntelligence
   const { highestLeverageAction: action } = growthIntelligence
 
+  const wordmarkLines = action.channel ? [CHANNEL_LABELS[action.channel]] : ['GROWWWLY']
+
   return (
     <motion.div variants={page} initial="hidden" animate="show">
       <motion.header variants={lead} className="pb-16 lg:pb-24">
@@ -60,59 +72,57 @@ export default function Overview() {
         <p className="t-body-lg mt-5 max-w-[64ch] text-muted">{product.description}</p>
       </motion.header>
 
-      {/* The decision. Real, deterministic, and the heaviest thing on the page. */}
-      <motion.section
-        variants={block}
-        aria-labelledby="headline-action"
-        className="rounded-2xl bg-surface px-6 py-11 shadow-soft sm:px-12 sm:py-14 lg:px-16 lg:py-20"
-      >
-        <Label tone="accent">{DECISION_TYPE_COPY[action.decisionType]}</Label>
+      {/* The decision. Real, deterministic, and the loudest surface in the system. */}
+      <motion.div variants={block}>
+        <Statement wordmark={wordmarkLines} className="px-6 py-11 sm:px-12 sm:py-14 lg:px-16 lg:py-20">
+          <Label className="text-shell-accent">YOUR NEXT MOVE</Label>
+          <p className="t-meta mt-2 text-shell-faint">{DECISION_TYPE_COPY[action.decisionType]}</p>
 
-        <h2 id="headline-action" className="t-title mt-6 max-w-[26ch]">
-          {action.title}
-        </h2>
+          <h2 className="t-title mt-6 max-w-[26ch] text-shell-ink">{action.title}</h2>
 
-        <p className="t-body-lg mt-6 max-w-[62ch] text-muted">{action.reason}</p>
+          <p className="t-body-lg mt-6 max-w-[62ch] text-shell-muted">{action.reason}</p>
 
-        <div className="mt-12 flex flex-wrap items-end gap-x-8 gap-y-9 sm:gap-x-10 lg:mt-14 lg:gap-x-14">
-          <div>
-            <div className="tnum text-[56px] font-[550] leading-[0.9] tracking-[-0.05em] text-ink">
-              {action.opportunityScore}
+          <div className="mt-12 flex flex-wrap items-end gap-x-8 gap-y-9 sm:gap-x-10 lg:mt-14 lg:gap-x-14">
+            <div>
+              <div className="t-metric-xl tnum text-shell-ink">{action.opportunityScore}</div>
+              <Label className="mt-3.5 text-shell-faint">Opportunity score</Label>
             </div>
-            <Label className="mt-3.5">Opportunity score</Label>
+            <StatRule tone="shell" />
+            <Stat
+              tone="shell"
+              value={actionSubjectLabel(action.channel)}
+              label={action.channel ? 'Channel' : 'Focus'}
+            />
+            <StatRule tone="shell" />
+            <Stat tone="shell" value={action.expectedImpact} label="Expected impact" />
+            <StatRule tone="shell" />
+            <Stat tone="shell" value={action.effortLabel} label="Estimated effort" />
           </div>
-          <StatRule />
-          <Stat value={actionSubjectLabel(action.channel)} label={action.channel ? 'Channel' : 'Focus'} />
-          <StatRule />
-          <Stat value={action.expectedImpact} label="Expected impact" />
-          <StatRule />
-          <Stat value={action.effortLabel} label="Estimated effort" />
-        </div>
 
-        <div className="mt-12 flex flex-wrap items-center gap-3 lg:mt-14">
-          <Link
-            href="/app/acquisition"
-            className="inline-flex h-12 items-center justify-center rounded-[14px] bg-ink px-6 text-[15px] font-[550] text-white shadow-[0_1px_2px_rgba(17,17,17,0.12)] transition-[background-color,transform] duration-[180ms] ease-[cubic-bezier(0.16,1,0.3,1)] hover:bg-black hover:-translate-y-px"
-          >
-            See ranked channels
+          {action.evidence.length > 0 && (
+            <div className="mt-12 border-t border-[rgba(245,222,222,0.14)] pt-9 lg:mt-14">
+              <Label className="text-shell-faint">Why</Label>
+              <ul className="mt-4 space-y-2.5">
+                {action.evidence.map((item) => (
+                  <li key={item} className="t-body flex gap-2.5 text-shell-ink-2">
+                    <span aria-hidden className="mt-[9px] h-1 w-1 shrink-0 rounded-full bg-shell-faint" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </Statement>
+
+        <div className="mt-8 flex flex-wrap items-center gap-3">
+          <Link href="/app/acquisition">
+            <Button variant="primary" size="lg">
+              See ranked channels
+            </Button>
           </Link>
           <DownloadReportButton analysis={result} />
         </div>
-
-        {action.evidence.length > 0 && (
-          <div className="mt-12 border-t border-hairline pt-9 lg:mt-14">
-            <Label>Why</Label>
-            <ul className="mt-4 space-y-2.5">
-              {action.evidence.map((item) => (
-                <li key={item} className="t-body flex gap-2.5 text-ink-2">
-                  <span aria-hidden className="mt-[9px] h-1 w-1 shrink-0 rounded-full bg-ghost" />
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </motion.section>
+      </motion.div>
 
       <motion.section
         variants={block}

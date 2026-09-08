@@ -1,7 +1,9 @@
 /**
  * App shell — sidebar, top bar, page canvas.
  *
- * The sidebar is a list of words. The active item is marked by a soft
+ * The shell itself — sidebar and top bar — is the one place the dark
+ * burgundy brand surface is always on screen: a frame the light,
+ * usable content canvas sits inside. The active item is marked by a soft
  * background that *slides* between items rather than blinking on, because
  * the movement is what tells you where you came from.
  */
@@ -91,7 +93,8 @@ function Icon({ name }: { name: string }) {
 }
 
 /* ------------------------------------------------------------------
-   Nav item
+   Nav item — on the dark shell, so the active/hover language is
+   pale-pink overlays rather than the light-surface ink overlays.
    ------------------------------------------------------------------ */
 
 function NavItem({
@@ -114,19 +117,19 @@ function NavItem({
       <div
         className={cn(
           'relative flex h-9 items-center gap-2.5 rounded-[10px] px-2.5 text-[13.5px] font-[480] transition-colors duration-[160ms]',
-          isActive ? 'text-ink' : 'text-muted hover:text-ink'
+          isActive ? 'text-shell-ink' : 'text-shell-muted hover:text-shell-ink'
         )}
       >
         {isActive && (
           <motion.div
             layoutId="nav-active"
-            className="absolute inset-0 rounded-[10px] bg-[rgba(17,17,17,0.052)]"
+            className="absolute inset-0 rounded-[10px] bg-[rgba(245,222,222,0.09)]"
             transition={
               reduced ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 40, mass: 0.7 }
             }
           />
         )}
-        <span className={cn('relative z-10', isActive ? 'text-ink' : 'text-faint')}>
+        <span className={cn('relative z-10', isActive ? 'text-shell-accent' : 'text-shell-faint')}>
           <Icon name={label} />
         </span>
         <span className="relative z-10">{label}</span>
@@ -143,8 +146,10 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-16 items-center gap-2.5 px-5">
-        <CoreMark size={21} />
-        <span className="text-[14.5px] font-[560] tracking-[-0.025em]">{PROJECT.name}</span>
+        <CoreMark size={21} tone="shell" />
+        <span className="text-[14.5px] font-[560] tracking-[-0.025em] text-shell-ink">
+          {PROJECT.name}
+        </span>
       </div>
 
       <nav className="flex flex-1 flex-col gap-0.5 px-3 pt-2">
@@ -161,7 +166,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
 
       <div className="px-3 pb-4">
         <div className="mb-3 px-2.5">
-          <div className="h-px w-full bg-hairline" />
+          <div className="h-px w-full bg-[rgba(245,222,222,0.14)]" />
         </div>
         <NavItem to="/app/settings" label="Settings" onNavigate={onNavigate} />
       </div>
@@ -170,7 +175,8 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 /* ------------------------------------------------------------------
-   Top bar
+   Top bar — same dark surface as the sidebar; the light content
+   canvas begins beneath it.
    ------------------------------------------------------------------ */
 
 function TopBar({ onMenu }: { onMenu: () => void }) {
@@ -178,11 +184,11 @@ function TopBar({ onMenu }: { onMenu: () => void }) {
   const { result } = useAnalysis()
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-hairline bg-canvas/85 px-5 backdrop-blur-xl lg:px-10">
+    <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-[rgba(245,222,222,0.12)] bg-shell/92 px-5 backdrop-blur-xl lg:px-10">
       <button
         onClick={onMenu}
         aria-label="Open navigation"
-        className="-ml-1 flex h-9 w-9 items-center justify-center rounded-[10px] text-muted transition-colors hover:bg-[rgba(17,17,17,0.05)] hover:text-ink lg:hidden"
+        className="-ml-1 flex h-9 w-9 items-center justify-center rounded-[10px] text-shell-muted transition-colors hover:bg-[rgba(245,222,222,0.08)] hover:text-shell-ink lg:hidden"
       >
         <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden>
           <path
@@ -195,11 +201,11 @@ function TopBar({ onMenu }: { onMenu: () => void }) {
       </button>
 
       <div className="flex min-w-0 items-baseline gap-2.5">
-        <span className="truncate text-[14px] font-[540] tracking-[-0.02em]">
+        <span className="truncate text-[14px] font-[540] tracking-[-0.02em] text-shell-ink">
           {result?.productIntelligence.product.name ?? 'No analysis yet'}
         </span>
         {result && (
-          <span className="hidden truncate text-[13px] text-faint sm:block">
+          <span className="hidden truncate text-[13px] text-shell-faint sm:block">
             {result.productIntelligence.product.category}
           </span>
         )}
@@ -208,7 +214,7 @@ function TopBar({ onMenu }: { onMenu: () => void }) {
       <div className="ml-auto flex items-center gap-1.5">
         <Link
           href="/analyze"
-          className="ml-2 flex h-8 items-center gap-1.5 rounded-[10px] px-2.5 text-[12.5px] font-[500] text-muted transition-colors hover:bg-[rgba(17,17,17,0.05)] hover:text-ink"
+          className="ml-2 flex h-8 items-center gap-1.5 rounded-[10px] px-2.5 text-[12.5px] font-[500] text-shell-muted transition-colors hover:bg-[rgba(245,222,222,0.08)] hover:text-shell-ink"
         >
           <motion.svg
             width="14"
@@ -228,7 +234,7 @@ function TopBar({ onMenu }: { onMenu: () => void }) {
         </Link>
 
         <div
-          className="ml-1 flex h-8 w-8 items-center justify-center rounded-full bg-ink text-[11.5px] font-[560] text-white"
+          className="ml-1 flex h-8 w-8 items-center justify-center rounded-full bg-shell-accent text-[11.5px] font-[560] text-shell"
           title="Signed in"
         >
           A
@@ -258,7 +264,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-dvh bg-canvas">
       {/* Desktop sidebar */}
-      <aside className="fixed left-0 top-0 z-30 hidden h-dvh w-[228px] border-r border-hairline bg-canvas lg:block">
+      <aside className="fixed left-0 top-0 z-30 hidden h-dvh w-[228px] border-r border-[rgba(245,222,222,0.12)] bg-shell lg:block">
         <SidebarBody />
       </aside>
 
@@ -267,7 +273,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         {menuOpen && (
           <>
             <motion.div
-              className="fixed inset-0 z-40 bg-[rgba(17,17,17,0.16)] backdrop-blur-[2px] lg:hidden"
+              className="fixed inset-0 z-40 bg-[rgba(23,6,9,0.5)] backdrop-blur-[2px] lg:hidden"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -275,7 +281,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
               onClick={() => setMenuOpen(false)}
             />
             <motion.aside
-              className="fixed left-0 top-0 z-50 h-dvh w-[252px] border-r border-hairline bg-canvas lg:hidden"
+              className="fixed left-0 top-0 z-50 h-dvh w-[252px] border-r border-[rgba(245,222,222,0.12)] bg-shell lg:hidden"
               initial={{ x: reduced ? 0 : '-100%', opacity: reduced ? 0 : 1 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: reduced ? 0 : '-100%', opacity: reduced ? 0 : 1 }}

@@ -8,15 +8,16 @@
 'use client'
 
 import { EmptyState } from '@/components/EmptyState'
-import { Label, Reveal, SignalBar } from '@/components/primitives'
+import { Label, Reveal } from '@/components/primitives'
 import { ProfileList, ProfileRow } from '@/components/analyze/ProfileRow'
+import { GrowthProfile } from '@/components/analyze/GrowthProfile'
 import { useAnalysis } from '@/lib/analysis-store'
 
 export default function ProductPage() {
   const { result } = useAnalysis()
   if (!result) return <EmptyState />
 
-  const { product, customer, problem } = result.productIntelligence
+  const { product, customer, problem, productFitSignals } = result.productIntelligence
 
   return (
     <div className="max-w-[880px] pb-4">
@@ -33,8 +34,8 @@ export default function ProductPage() {
 
       <Reveal>
         <section aria-labelledby="sec-product">
-          <h2 id="sec-product" className="t-label mb-3">
-            The product
+          <h2 id="sec-product" className="t-h1 mb-1">
+            Product
           </h2>
           <div>
             <ProfileRow label="Category" first>
@@ -50,15 +51,31 @@ export default function ProductPage() {
 
       <Reveal className="mt-16 lg:mt-24">
         <section aria-labelledby="sec-customer">
-          <h2 id="sec-customer" className="t-label mb-3">
-            Who it&apos;s for
+          <h2 id="sec-customer" className="t-h1 mb-1">
+            Customer
           </h2>
           <div>
             <ProfileRow label="Primary customer" first>
               {customer.primaryCustomer}
             </ProfileRow>
-            <ProfileRow label="Buyer">{customer.buyer}</ProfileRow>
-            <ProfileRow label="User">{customer.user}</ProfileRow>
+
+            {/* User and buyer read together — often different people, and
+                the relationship between them matters more than either
+                value alone. */}
+            <div className="grid grid-cols-1 gap-y-6 border-t border-hairline py-7 sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-x-6 sm:py-8">
+              <div>
+                <Label>User</Label>
+                <p className="t-h3 mt-2">{customer.user}</p>
+              </div>
+              <span aria-hidden className="hidden text-[15px] text-ghost sm:block">
+                →
+              </span>
+              <div>
+                <Label>Buyer</Label>
+                <p className="t-h3 mt-2">{customer.buyer}</p>
+              </div>
+            </div>
+
             <ProfileRow label="Ideal customer profile" prose>
               {customer.idealCustomerProfile}
             </ProfileRow>
@@ -74,31 +91,55 @@ export default function ProductPage() {
 
       <Reveal className="mt-16 lg:mt-24">
         <section aria-labelledby="sec-problem">
-          <h2 id="sec-problem" className="t-label mb-3">
-            The problem
+          <h2 id="sec-problem" className="t-h1 mb-1">
+            Problem
           </h2>
-          <p className="t-meta mb-7 max-w-[58ch]">{problem.primaryProblem}</p>
+          <p className="t-body mt-4 mb-7 max-w-[58ch] text-muted">{problem.primaryProblem}</p>
 
-          <div className="grid grid-cols-1 gap-x-10 gap-y-1 sm:grid-cols-2">
-            <SignalMini label="Pain severity" value={problem.painSeverity} />
-            <SignalMini label="Urgency" value={problem.urgency} />
-            <SignalMini label="Frequency" value={problem.frequency} />
-            <SignalMini label="Willingness to pay" value={problem.willingnessToPay} />
-          </div>
+          <Label className="mb-4">Pain profile</Label>
+          <GrowthProfile
+            groups={[
+              {
+                signals: [
+                  { label: 'Pain severity', value: problem.painSeverity },
+                  { label: 'Urgency', value: problem.urgency },
+                  { label: 'Frequency', value: problem.frequency },
+                  { label: 'Willingness to pay', value: problem.willingnessToPay },
+                ],
+              },
+            ]}
+          />
         </section>
       </Reveal>
-    </div>
-  )
-}
 
-function SignalMini({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="border-t border-hairline py-5">
-      <div className="flex items-baseline justify-between">
-        <span className="t-meta">{label}</span>
-        <span className="tnum text-[14px] font-[550] text-ink">{value}</span>
-      </div>
-      <SignalBar value={value} className="mt-3" />
+      <Reveal className="mt-16 lg:mt-24">
+        <section aria-labelledby="sec-fit">
+          <h2 id="sec-fit" className="t-h1 mb-1">
+            Product fit
+          </h2>
+          <p className="t-body mt-4 mb-7 max-w-[58ch] text-muted">
+            How well {product.name} maps to different kinds of audiences and buying behavior.
+          </p>
+
+          <GrowthProfile
+            groups={[
+              {
+                signals: [
+                  { label: 'Technical audience fit', value: productFitSignals.technicalAudienceFit },
+                  { label: 'Visual audience fit', value: productFitSignals.visualAudienceFit },
+                  { label: 'Community audience fit', value: productFitSignals.communityAudienceFit },
+                  { label: 'Search-driven problem', value: productFitSignals.searchDrivenProblem },
+                  {
+                    label: 'Impulse purchase potential',
+                    value: productFitSignals.impulsePurchasePotential,
+                  },
+                  { label: 'Sales-led potential', value: productFitSignals.salesLedPotential },
+                ],
+              },
+            ]}
+          />
+        </section>
+      </Reveal>
     </div>
   )
 }

@@ -16,13 +16,25 @@ import type { z } from "zod";
 
 const OPENAI_MODEL = "gpt-5.6-sol";
 const DEFAULT_BASE_URL = "https://epiaus2.services.ai.azure.com/openai/v1";
+
+/** Client-level safety net — catches connection-level hangs and unexpected
+ * paths that never get a per-request override. Not used for the structured
+ * Product Intelligence call; see STRUCTURED_RESPONSE_TIMEOUT_MS below. */
 const REQUEST_TIMEOUT_MS = 30_000;
+
+/** GPT-5.6-Sol is a reasoning-class model; the multi-step inference for
+ * structured Product Intelligence routinely exceeds 30 s on Azure. This
+ * timeout applies specifically to that call and defaults to 90 s, which is
+ * comfortable for reasoning-model latency without allowing runaway waits.
+ * Override with OPENAI_STRUCTURED_TIMEOUT_MS in .env.local if needed. */
+const STRUCTURED_RESPONSE_TIMEOUT_MS = Number(
+  process.env.OPENAI_STRUCTURED_TIMEOUT_MS ?? 90_000
+);
+
 /** Web search runs a multi-round agentic tool loop (several searches, often
  * a page open) before answering — even at low reasoning effort this
  * regularly takes well past 30s, verified manually against the real
- * endpoint. Product Intelligence's plain structured calls keep the shorter
- * client-level default above; this is a per-request override for search
- * only. */
+ * endpoint. Kept at 180 s to cover worst-case multi-round searches. */
 const WEB_SEARCH_TIMEOUT_MS = 180_000;
 
 export interface OpenAiGenerateOptions {
@@ -86,16 +98,40 @@ function tryParseAndValidate(text: string, schema: z.ZodTypeAny): ParseResult {
  * subclasses — it does not override `.name`, so string-matching `.name`
  * silently never matches), so it would otherwise be swallowed by the generic
  * branch below. */
-function messageForError(err: unknown): string {
+/** A short, human-readable category — logged server-side and surfaced as
+ * the public error message. Never includes the API key or full error body. */
+function errorCategory(
+  err: unknown,
+  timeoutMs?: number
+): { category: string; publicMessage: string } {
   if (err instanceof APIConnectionTimeoutError) {
-    return "OpenAI request timed out.";
+    const ms = timeoutMs ?? STRUCTURED_RESPONSE_TIMEOUT_MS;
+    return {
+      category: "timed_out",
+      publicMessage: `OpenAI request timed out after ${ms}ms.`,
+    };
   }
   if (err instanceof APIError) {
-    if (err.status === 401 || err.status === 403) return "OpenAI authentication failed.";
-    if (err.status === 429) return "OpenAI rate limit or quota exceeded.";
-    return `OpenAI request failed (${err.status ?? "unknown status"}).`;
+    if (err.status === 401 || err.status === 403)
+      return { category: "authentication", publicMessage: "OpenAI authentication failed." };
+    if (err.status === 429)
+      return { category: "rate_limit", publicMessage: "OpenAI rate limit or quota exceeded." };
+    if (err.status !== undefined && err.status >= 500)
+      return {
+        category: "server_error",
+        publicMessage: `OpenAI server error (${err.status}).`,
+      };
+    return {
+      category: "request_error",
+      publicMessage: `OpenAI request failed (${err.status ?? "unknown status"}).`,
+    };
   }
-  return "Could not reach OpenAI.";
+  return { category: "connection", publicMessage: "Could not reach OpenAI." };
+}
+
+/** @deprecated kept for backward compatibility — prefer errorCategory() */
+function messageForError(err: unknown): string {
+  return errorCategory(err).publicMessage;
 }
 
 interface InputTurn {
@@ -111,25 +147,30 @@ async function createResponse(
 ): Promise<string> {
   let outputText: string | null | undefined;
   try {
-    const response = await client.responses.create({
-      model: OPENAI_MODEL,
-      instructions: systemPrompt,
-      input,
-      // gpt-5.6-sol is a reasoning-class model on this deployment — it
-      // rejects `temperature` outright ("Unsupported parameter") rather than
-      // ignoring it, and always reasons at its own fixed sampling settings.
-      // `options.temperature` is accepted for interface parity with the
-      // other providers but intentionally not forwarded here.
-      max_output_tokens: options.maxOutputTokens ?? 2000,
-    });
+    const response = await client.responses.create(
+      {
+        model: OPENAI_MODEL,
+        instructions: systemPrompt,
+        input,
+        // gpt-5.6-sol is a reasoning-class model on this deployment — it
+        // rejects `temperature` outright ("Unsupported parameter") rather than
+        // ignoring it, and always reasons at its own fixed sampling settings.
+        // `options.temperature` is accepted for interface parity with the
+        // other providers but intentionally not forwarded here.
+        max_output_tokens: options.maxOutputTokens ?? 2000,
+      },
+      // Per-request timeout — 90 s by default, configurable via
+      // OPENAI_STRUCTURED_TIMEOUT_MS. This overrides the 30 s client-level
+      // safeguard for the structured Product Intelligence path, which needs
+      // more headroom for reasoning-model latency.
+      { timeout: STRUCTURED_RESPONSE_TIMEOUT_MS }
+    );
     outputText = response.output_text;
   } catch (err) {
-    // Concise diagnostic only — never the full error object, which can carry
-    // request headers.
-    console.error(
-      `[openai] request failed${err instanceof APIError ? ` (${err.status})` : ""}`
-    );
-    throw new Error(messageForError(err));
+    const { category, publicMessage } = errorCategory(err, STRUCTURED_RESPONSE_TIMEOUT_MS);
+    // Concise diagnostic — never the full error object (carries request headers).
+    console.error(`[openai] request failed: ${category}`);
+    throw new Error(publicMessage);
   }
 
   if (!outputText) {
