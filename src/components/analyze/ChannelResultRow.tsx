@@ -36,7 +36,7 @@ function RecommendationTag({ kind }: { kind: Recommendation }) {
 /**
  * One channel's framework result — opportunity score, recommendation and
  * rationale from the deterministic Growth Intelligence Engine, with
- * Gemini's own raw signal kept visually separate underneath so the two are
+ * OpenAI's own raw signal kept visually separate underneath so the two are
  * never mistaken for each other.
  */
 export function ChannelResultRow({

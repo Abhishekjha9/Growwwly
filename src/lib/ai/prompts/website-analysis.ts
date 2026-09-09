@@ -1,7 +1,7 @@
 import type { CrawlEvidence, PerformanceEvidence, SeoEvidence } from "@/lib/website/types";
 
 // ---------------------------------------------------------------------------
-// System prompt — establishes Gemini as a website-readiness analyst
+// System prompt — establishes OpenAI as a website-readiness analyst
 // interpreting evidence our own code already collected. It never invents
 // evidence and never scores acquisition channels — that's the Growth Engine.
 // ---------------------------------------------------------------------------

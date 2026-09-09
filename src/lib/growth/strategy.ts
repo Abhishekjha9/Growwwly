@@ -32,7 +32,7 @@ import type { WebsiteIntelligence } from "@/types/website";
 // ---------------------------------------------------------------------------
 // The decision layer. Scoring produces numbers; this module turns those
 // numbers into the labels, ranking and single recommended action a founder
-// actually reads. Still fully deterministic — no Gemini calls here either.
+// actually reads. Still fully deterministic — no OpenAI calls here either.
 // ---------------------------------------------------------------------------
 
 export function recommendationFor(opportunityScore: number): Recommendation {
@@ -67,7 +67,7 @@ function rankContributions(bag: SignalBag, weights: SignalWeight[]) {
 }
 
 /** A deterministic sentence explaining why a channel scored the way it did,
- * built from its top contributing signals — never from Gemini's prose. */
+ * built from its top contributing signals — never from OpenAI's prose. */
 export function buildChannelRationale(
   channel: Channel,
   bag: SignalBag,
@@ -173,7 +173,7 @@ function buildChannelAction(
  * the limiting factor, the highest-leverage action becomes fixing that,
  * not pursuing more of a channel the site can't yet convert. Which specific
  * website-fix action is picked is itself deterministic — based on which
- * evidenced sub-signal is weakest — never chosen by Gemini.
+ * evidenced sub-signal is weakest — never chosen by OpenAI.
  */
 function buildWebsiteFixAction(
   bottleneck: Bottleneck,
@@ -242,7 +242,7 @@ function buildWebsiteFixAction(
  * shows a positioning/conversion/technical bottleneck sitting in front of a
  * genuinely strong acquisition opportunity, the action becomes fixing the
  * website; otherwise it falls back to the Phase 2 channel-pursuit logic.
- * Gemini never makes this decision — it only supplies the interpretation
+ * OpenAI never makes this decision — it only supplies the interpretation
  * `detectBottleneck` and this function read.
  */
 export function selectHighestLeverageAction(

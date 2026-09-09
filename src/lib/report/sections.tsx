@@ -23,7 +23,7 @@ import {
 // ---------------------------------------------------------------------------
 // Every component here is a pure presentation of fields already present on
 // `AnalysisResult` (`@/types/analysis`). Nothing is computed, scored, or
-// invented here — see `generate.ts` for the "no Gemini, no scoring" guarantee.
+// invented here — see `generate.ts` for the "no OpenAI, no scoring" guarantee.
 // `t` (theme + styles, see `render-context.ts`) is threaded through as a
 // prop rather than read from React Context, so every section renders
 // correctly in both Light and Dark without touching Next.js's RSC boundary
@@ -390,7 +390,7 @@ export function GrowthOpportunitiesSection({
       <Text style={[styles.body, { marginTop: 8, maxWidth: 470 }]}>
         Eight acquisition channels, ranked by Opportunity Score — a framework score Growwwly&apos;s
         code computes from the model&apos;s market, product-fit and channel signals, tempered by
-        confidence, effort and stated constraints. &quot;AI signal&quot; is Gemini&apos;s own raw
+        confidence, effort and stated constraints. &quot;AI signal&quot; is OpenAI&apos;s own raw
         relevance read for the channel — not a market measurement.
       </Text>
       {summary.decisionType === "test" && (
@@ -414,7 +414,7 @@ export function GrowthOpportunitiesSection({
       <View style={styles.section}>
         <SectionLabel t={t}>Channel interpretation — top ranked</SectionLabel>
         <Text style={[styles.faint, { marginTop: 4 }]}>
-          Rationale and evidence produced by the Growth Intelligence Engine, not Gemini.
+          Rationale and evidence produced by the Growth Intelligence Engine, not OpenAI.
         </Text>
         {rankedChannels.slice(0, 3).map((c, i) => (
           <View key={c.channel} style={[{ marginTop: 12, paddingTop: i === 0 ? 0 : 0 }]} wrap={false}>

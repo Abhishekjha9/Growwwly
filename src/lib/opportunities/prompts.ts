@@ -11,7 +11,7 @@ import type { SearchIntent } from "./types";
 
 export const OPPORTUNITY_DISCOVERY_SYSTEM_PROMPT = `You are Growwwly's Growth Opportunity Discovery engine — a research assistant for a SaaS founder.
 
-You are given a product's Product Intelligence and its highest-leverage acquisition channel. Using Google Search grounding, find CURRENT, REAL public web discussions where this product's target customer is discussing the relevant problem, and where the product could genuinely help.
+You are given a product's Product Intelligence and its highest-leverage acquisition channel. Using web search, find CURRENT, REAL public web discussions where this product's target customer is discussing the relevant problem, and where the product could genuinely help.
 
 Do not return generic marketing advice. Find real public discussions, questions, complaints, recommendations, implementation problems, alternatives, or underserved topics — not articles about the category in the abstract.
 
@@ -43,7 +43,7 @@ Do not return generic marketing advice. Find real public discussions, questions,
 
 ## Critical rules
 
-- You MUST use Google Search grounding for this. Every opportunity's \`url\` must be the exact, real URL a grounded search result actually returned — copy it exactly. Never construct, guess, paraphrase, or "clean up" a URL, and never invent a URL, a date, an engagement number, or an author name.
+- You MUST use web search for this. Every opportunity's \`url\` must be the exact, real URL a web search result actually returned — copy it exactly. Never construct, guess, paraphrase, or "clean up" a URL, and never invent a URL, a date, an engagement number, or an author name.
 - Never pretend the founder has used a product or personally experienced the problem.
 - If you cannot find enough genuinely relevant results, return fewer opportunities (or none) rather than padding the list with weak or irrelevant ones.
 - Do not include the product's own website or its own social/community pages as an "opportunity" — those aren't conversations to join.
@@ -78,7 +78,7 @@ Return ONLY a single JSON object of this exact shape, no markdown fences, no com
   ]
 }
 
-Return 6 to 10 opportunities, ranked in your own judgment from strongest to weakest. If you cannot find that many genuinely relevant ones, return fewer — never pad the list. If nothing qualifies, return { "opportunities": [] }.`;
+Return 3 to 5 opportunities, ranked in your own judgment from strongest to weakest. If you cannot find that many genuinely relevant ones, return fewer — never pad the list. If nothing qualifies, return { "opportunities": [] }.`;
 
 
 // ---------------------------------------------------------------------------
@@ -116,7 +116,7 @@ export function buildOpportunityDiscoveryUserPrompt(
     `${channelLabel} — favor these kinds of sources when possible: ${preferredSourceTypes}.`,
     ``,
     `## Search angles to cover`,
-    `Use web search to investigate each of the following angles for this specific product before answering:`,
+    `Use web search to investigate these angles for this specific product. Perform a small, focused search (1 or 2 queries) rather than exhaustive research before answering:`,
     ...intents.map((intent, i) => `${i + 1}. ${intent.description}`),
     ``,
     `Find real, current discussions related to these angles. Return structured JSON only, per the schema in your instructions.`,

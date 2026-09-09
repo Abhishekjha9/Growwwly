@@ -31,7 +31,7 @@ vi.mock("openai", () => {
   }
   class FakeAPIError extends Error {
     status: number | undefined;
-    constructor(status: number | undefined, error: unknown, message: string | undefined, headers: unknown) {
+    constructor(status: number | undefined, error: unknown, message: string | undefined, _headers: unknown) {
       super(message ?? "API Error");
       this.status = status;
     }

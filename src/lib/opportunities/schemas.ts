@@ -47,7 +47,7 @@ export const IntentSignalTypeSchema = z.enum([
   "asking_implementation_question",
 ]);
 
-/** 0–100 raw signal Gemini estimates from the search result — never a final
+/** 0–100 raw signal OpenAI estimates from the search result — never a final
  * score. Same "analyst estimate" framing as Phase 1's SignalScore. */
 const RawSignalScore = z
   .number()
@@ -57,7 +57,7 @@ const RawSignalScore = z
   .describe("Analyst estimate from 0 (none) to 100 (very strong)");
 
 // ---------------------------------------------------------------------------
-// RawOpportunity — exactly what Gemini returns per discussion, before any
+// RawOpportunity — exactly what OpenAI returns per discussion, before any
 // deterministic scoring is applied. Every field here is either a fact
 // extracted from a real grounded search result (title, url, source, snippet,
 // publishedAt, commentCount) or a raw analyst signal (the *Signal fields).
@@ -85,8 +85,8 @@ export const RawOpportunitySchema = z.object({
    * source. */
   publishedAt: z.string().max(60).optional(),
   /** A numeric estimate of the discussion's age in days, only when the
-   * search result actually exposed a date Gemini could compute this from.
-   * Feeds the deterministic freshness score in `rank.ts` — Gemini estimates
+   * search result actually exposed a date OpenAI could compute this from.
+   * Feeds the deterministic freshness score in `rank.ts` — OpenAI estimates
    * the age, code decides what that age is worth. */
   estimatedDaysAgo: z.number().int().min(0).max(3650).optional(),
   commentCount: z.number().int().min(0).max(1_000_000).optional(),
@@ -134,7 +134,7 @@ export const OpportunitySearchResponseShapeSchema = z.object({
 // ---------------------------------------------------------------------------
 // Opportunity — the final, code-scored object the UI renders. Everything
 // under `relevanceScore`/`opportunityScore`/`confidence` is computed in
-// `rank.ts`; nothing here is written by Gemini directly.
+// `rank.ts`; nothing here is written by OpenAI directly.
 // ---------------------------------------------------------------------------
 
 export const OpportunitySchema = z.object({
@@ -148,7 +148,7 @@ export const OpportunitySchema = z.object({
   publishedAt: z.string().optional(),
   commentCount: z.number().int().min(0).optional(),
 
-  /** Gemini's own raw relevance signal, passed through unchanged — the
+  /** OpenAI's own raw relevance signal, passed through unchanged — the
    * "search relevance" figure kept separate from the framework score. */
   relevanceScore: z.number().int().min(0).max(100),
   /** The "Growwwly Opportunity Score" — never called a probability of

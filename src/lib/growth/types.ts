@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 // ---------------------------------------------------------------------------
-// Growth Intelligence — the deterministic layer on top of Gemini's Product
+// Growth Intelligence — the deterministic layer on top of OpenAI's Product
 // Intelligence. Nothing in this module is produced by the model: every value
 // here is computed by plain TypeScript from the Phase 1 signals.
 // ---------------------------------------------------------------------------
@@ -65,7 +65,7 @@ export const ChannelResultSchema = z.object({
   channel: ChannelSchema,
 
   /** 0–100. Pure signal fit for this channel — market signals, product-fit
-   * signals, problem signals and Gemini's own channel relevance, weighted
+   * signals, problem signals and OpenAI's own channel relevance, weighted
    * and blended by our framework. Independent of effort or confidence. */
   channelScore: z.number().int().min(0).max(100),
 
@@ -85,10 +85,10 @@ export const ChannelResultSchema = z.object({
   recommendation: RecommendationSchema,
 
   /** Deterministically generated from the signals that drove channelScore —
-   * never written by Gemini. */
+   * never written by OpenAI. */
   rationale: z.string(),
 
-  /** Gemini's own raw signal for this channel, kept alongside the framework
+  /** OpenAI's own raw signal for this channel, kept alongside the framework
    * score so the two are never confused with each other in the UI. */
   aiSignal: z.object({
     relevance: z.number().int().min(0).max(100),

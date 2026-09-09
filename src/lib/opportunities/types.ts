@@ -14,7 +14,7 @@ export type { Opportunity, RawOpportunity, OpportunityDiscoveryRequest };
 // ---------------------------------------------------------------------------
 // SearchIntent — a single targeted search angle built deterministically from
 // Product + Growth Intelligence (see `search.ts`). Not a literal query
-// string sent to an API: Gemini's Google Search grounding tool chooses its
+// string sent to an API: OpenAI's web_search tool chooses its
 // own actual search queries, so these angles are prompt guidance the model
 // is instructed to cover, not a controllable query list.
 // ---------------------------------------------------------------------------
@@ -33,6 +33,6 @@ export type SearchAngle = (typeof SEARCH_ANGLES)[number];
 export interface SearchIntent {
   angle: SearchAngle;
   /** A short, human-readable description of what to search for — embedded
-   * directly in the Gemini prompt. */
+   * directly in the OpenAI prompt. */
   description: string;
 }

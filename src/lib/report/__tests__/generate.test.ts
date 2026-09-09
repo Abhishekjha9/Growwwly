@@ -144,9 +144,9 @@ describe("generateGrowthReport", () => {
     expectValidPdf(buf);
   });
 
-  it("13. never calls Gemini", async () => {
+  it("13. never calls OpenAI", async () => {
     vi.resetModules();
-    vi.doMock("@/lib/ai/gemini", () => ({
+    vi.doMock("@/lib/ai/openai", () => ({
       generateStructuredResponse: () => {
         throw new Error("generateStructuredResponse must not be called by the report generator");
       },
@@ -155,7 +155,7 @@ describe("generateGrowthReport", () => {
     const analysis = buildAnalysis(developerApiFixture(), healthyWebsiteFixture());
     const buf = await freshGenerate(analysis);
     expectValidPdf(buf);
-    vi.doUnmock("@/lib/ai/gemini");
+    vi.doUnmock("@/lib/ai/openai");
     vi.resetModules();
   });
 

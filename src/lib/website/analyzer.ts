@@ -2,7 +2,7 @@ import { captureScreenshots } from "./browser";
 import { DESKTOP_VIEWPORT, MOBILE_VIEWPORT } from "./constants";
 import { extractSeoEvidence } from "./extract";
 import { fetchHtml } from "./fetch";
-import { interpretWebsite } from "./gemini";
+import { interpretWebsite } from "./openai";
 import { runLighthouseAudit } from "./lighthouse";
 import { WebsiteIntelligenceSchema } from "./types";
 import type { VisualEvidence, WebsiteIntelligence } from "./types";
@@ -26,7 +26,7 @@ import type { VisualEvidence, WebsiteIntelligence } from "./types";
 //                       │
 //             objective evidence
 //                       ↓
-//              Gemini 2.5 Flash
+//              OpenAI 2.5 Flash
 //                       │
 //                       ↓
 //             Website Intelligence

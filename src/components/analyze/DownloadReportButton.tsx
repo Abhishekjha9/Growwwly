@@ -1,6 +1,6 @@
 /**
  * Triggers a server-rendered PDF export of the *existing* analysis result —
- * no new Gemini call, no re-scoring. Clicking opens a Light/Dark theme
+ * no new OpenAI call, no re-scoring. Clicking opens a Light/Dark theme
  * picker (`DownloadReportModal`); the chosen theme only ever changes the
  * PDF's visual tokens (`@/lib/report/theme`), never the analysis it renders.
  * See `@/lib/report` and `/api/generate-report`.

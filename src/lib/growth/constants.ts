@@ -257,7 +257,7 @@ export const CHANNEL_ACTION_TYPE: Record<Channel, ChannelActionType> = {
 // ---------------------------------------------------------------------------
 // Phase 3 — Website Intelligence feeding the Growth Engine (§10/§11/§12).
 //
-// Nothing below asks Gemini for a score. `technicalHealthScore`,
+// Nothing below asks OpenAI for a score. `technicalHealthScore`,
 // `positioningScore`, `conversionScore` and `contentFoundationScore` are all
 // computed deterministically in `growth/website.ts` from Website
 // Intelligence's own facts and AI-interpretation fields (which are
@@ -281,7 +281,7 @@ export const BOTTLENECK_THRESHOLDS = {
   weakConversion: 45,
 };
 
-/** Below this, Gemini's own confidence in its website interpretation is too
+/** Below this, OpenAI's own confidence in its website interpretation is too
  * low to justify overriding a channel-pursuit action with a website-fix one
  * — the diagnosis itself might be wrong, not just the website. */
 export const WEBSITE_CONFIDENCE_LOW_THRESHOLD = 40;

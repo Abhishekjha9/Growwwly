@@ -114,7 +114,7 @@ export function channelKeys(): readonly Channel[] {
 // ---------------------------------------------------------------------------
 // Constraint classification
 //
-// growthContext/constraints are free-text strings from Gemini (the schema
+// growthContext/constraints are free-text strings from OpenAI (the schema
 // only hints at a vocabulary, it doesn't enforce one), so we classify them
 // with plain keyword matching rather than assuming a fixed enum. Anything
 // that doesn't clearly match a bucket is "unknown" — the scoring layer must

@@ -1,4 +1,4 @@
-import { generateStructuredResponse, type GeminiImagePart } from "@/lib/ai/gemini";
+import { generateOpenAiStructuredResponse } from "@/lib/ai/providers/openai";
 import {
   buildWebsiteAnalysisUserPrompt,
   WEBSITE_ANALYSIS_SYSTEM_PROMPT,
@@ -26,7 +26,7 @@ export interface InterpretWebsiteInput {
   };
 }
 
-function toImagePart(dataUrl: string | null): GeminiImagePart | null {
+function extractBase64Data(dataUrl: string | null): { mimeType: string; data: string } | null {
   if (!dataUrl) return null;
   const match = /^data:([^;]+);base64,(.+)$/.exec(dataUrl);
   if (!match) return null;
@@ -34,18 +34,17 @@ function toImagePart(dataUrl: string | null): GeminiImagePart | null {
 }
 
 /**
- * The single Gemini call for website analysis — one request carrying both
- * screenshots and the extracted evidence, never called more than once per
- * analysis (see §17). Never throws: a failure here just means no AI
- * interpretation, not a failed analysis.
+ * The single OpenAI call for website analysis — one request carrying both
+ * screenshots and the extracted evidence. Never throws: a failure here just 
+ * means no AI interpretation, not a failed analysis.
  */
 export async function interpretWebsite(
   input: InterpretWebsiteInput
 ): Promise<WebsiteInterpretation | null> {
   const images = [
-    toImagePart(input.visual.desktop.screenshotDataUrl),
-    toImagePart(input.visual.mobile.screenshotDataUrl),
-  ].filter((part): part is GeminiImagePart => part !== null);
+    extractBase64Data(input.visual.desktop.screenshotDataUrl),
+    extractBase64Data(input.visual.mobile.screenshotDataUrl),
+  ].filter((part): part is { mimeType: string; data: string } => part !== null);
 
   const userPrompt = buildWebsiteAnalysisUserPrompt({
     url: input.url,
@@ -58,7 +57,7 @@ export async function interpretWebsite(
   });
 
   try {
-    const raw = await generateStructuredResponse({
+    const raw = await generateOpenAiStructuredResponse({
       systemPrompt: WEBSITE_ANALYSIS_SYSTEM_PROMPT,
       userPrompt,
       responseSchema: WebsiteInterpretationSchema,
@@ -69,14 +68,14 @@ export async function interpretWebsite(
     const validated = WebsiteInterpretationSchema.safeParse(raw);
     if (!validated.success) {
       console.error(
-        "[website] Gemini returned an invalid interpretation structure:",
+        "[website] OpenAI returned an invalid interpretation structure:",
         validated.error.issues
       );
       return null;
     }
     return validated.data;
   } catch (err) {
-    console.error("[website] Gemini visual analysis failed:", err);
+    console.error("[website] OpenAI visual analysis failed:", err);
     return null;
   }
 }

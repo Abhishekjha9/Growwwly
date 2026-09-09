@@ -2,13 +2,13 @@ import type { ProductAnalysisRequest } from "@/lib/ai/schemas/product-analysis";
 
 // ---------------------------------------------------------------------------
 // Output budget — the schema is ~9 objects of mostly 0-100 integers plus a
-// handful of short strings/arrays; observed Gemini responses for it run well
+// handful of short strings/arrays; observed OpenAI responses for it run well
 // under 2,000 tokens, so this is a real cap rather than a round default.
 // ---------------------------------------------------------------------------
 export const PRODUCT_ANALYSIS_MAX_OUTPUT_TOKENS = 2000;
 
 // ---------------------------------------------------------------------------
-// System prompt — establishes Gemini as a SaaS Growth Intelligence Analyst
+// System prompt — establishes OpenAI as a SaaS Growth Intelligence Analyst
 // ---------------------------------------------------------------------------
 
 export const PRODUCT_ANALYSIS_SYSTEM_PROMPT = `You are a SaaS Growth Intelligence Analyst.
@@ -98,7 +98,7 @@ If the product description is extremely vague (e.g. "AI productivity tool"):
 Return ONLY valid JSON matching the required schema. No markdown, no explanation, no commentary outside the JSON structure.`;
 
 // ---------------------------------------------------------------------------
-// User prompt builder — converts the request into a Gemini user message
+// User prompt builder — converts the request into a OpenAI user message
 // ---------------------------------------------------------------------------
 
 export function buildProductAnalysisUserPrompt(

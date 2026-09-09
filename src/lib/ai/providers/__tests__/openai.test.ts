@@ -86,7 +86,7 @@ describe("generateOpenAiStructuredResponse", () => {
 
   it("7. throws immediately, without any network call, when the API key is missing", async () => {
     delete process.env.OPENAI_API_KEY;
-    // The provider caches its client singleton (same pattern as the Gemini
+    // The provider caches its client singleton (same pattern as the OpenAI
     // provider) — force a fresh module instance so the earlier tests'
     // cached, already-configured client isn't reused here.
     vi.resetModules();

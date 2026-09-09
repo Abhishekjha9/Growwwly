@@ -2,12 +2,12 @@ import { z } from "zod";
 
 // ---------------------------------------------------------------------------
 // Website Intelligence — objective evidence collected by inspecting a real
-// SaaS website, plus Gemini's interpretation of that evidence.
+// SaaS website, plus OpenAI's interpretation of that evidence.
 //
 // The type boundary below is deliberate and load-bearing: `*Evidence`
 // schemas (crawl/seo/performance/visual) hold only facts our own code
-// measured — nothing here is written by Gemini. `WebsiteInterpretationSchema`
-// is the ONLY schema Gemini is asked to fill in, and it never contains a
+// measured — nothing here is written by OpenAI. `WebsiteInterpretationSchema`
+// is the ONLY schema OpenAI is asked to fill in, and it never contains a
 // number our code could have measured directly. `WebsiteIntelligenceSchema`
 // assembles both halves without blending them.
 // ---------------------------------------------------------------------------
@@ -150,7 +150,7 @@ export const VisualEvidenceSchema = z.object({
 export type VisualEvidence = z.infer<typeof VisualEvidenceSchema>;
 
 // ---------------------------------------------------------------------------
-// AI INTERPRETATION — the only part Gemini is asked to produce.
+// AI INTERPRETATION — the only part OpenAI is asked to produce.
 // Every field here is a judgment call about evidence already collected
 // above, never a fact our own code could measure directly.
 // ---------------------------------------------------------------------------
@@ -231,9 +231,9 @@ export const WebsiteConfidenceSchema = z.object({
 });
 
 /**
- * The exact object Gemini is asked to produce (via the existing
+ * The exact object OpenAI is asked to produce (via the existing
  * `generateStructuredResponse`, multimodal — screenshots + evidence).
- * Nothing outside this schema comes from Gemini.
+ * Nothing outside this schema comes from OpenAI.
  */
 export const WebsiteInterpretationSchema = z.object({
   positioning: PositioningInterpretationSchema,
@@ -257,7 +257,7 @@ export const WebsiteIntelligenceStatusSchema = z.enum([
   /** Crawl, evidence extraction and AI interpretation all succeeded. */
   "complete",
   /** Crawl succeeded but at least one sub-step (Lighthouse, a screenshot,
-   * or the Gemini interpretation) did not. */
+   * or the OpenAI interpretation) did not. */
   "partial",
   /** No usable evidence at all — invalid/blocked URL, unreachable site, or
    * the crawl itself failed. */

@@ -2,7 +2,7 @@
  * Overview — states the decision first, then the reasoning behind it.
  *
  * The highest-leverage action comes from the deterministic Growth
- * Intelligence Engine (`@/lib/growth`), not from Gemini — it's the one
+ * Intelligence Engine (`@/lib/growth`), not from OpenAI — it's the one
  * thing on this page that isn't a raw AI signal or a direct read of the
  * founder's own answers. It gets the loudest surface in the system: the
  * dark Statement panel, not another card among equals.

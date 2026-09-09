@@ -13,7 +13,7 @@ import type { SeoEvidence } from "./types";
 // Objective HTML/DOM facts, via Cheerio. Nothing in this file interprets
 // anything — every value is a direct count, a direct string, or a direct
 // presence check against the parsed DOM. Interpretation happens later, in
-// Gemini's `WebsiteInterpretation`.
+// OpenAI's `WebsiteInterpretation`.
 // ---------------------------------------------------------------------------
 
 function text(value: string | undefined | null): string | null {

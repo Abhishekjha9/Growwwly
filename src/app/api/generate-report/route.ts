@@ -13,7 +13,7 @@ export const runtime = "nodejs";
 // POST /api/generate-report
 //
 // Pure export layer: takes an already-computed AnalysisResult, validates it,
-// and renders it to a PDF. No Gemini call, no website fetch, no Lighthouse
+// and renders it to a PDF. No OpenAI call, no website fetch, no Lighthouse
 // run, no re-scoring — see `@/lib/report/generate.ts`.
 // ---------------------------------------------------------------------------
 

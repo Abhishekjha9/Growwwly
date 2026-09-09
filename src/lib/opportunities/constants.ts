@@ -3,7 +3,7 @@ import type { IntentSignalType, SourceType } from "./types";
 
 // ---------------------------------------------------------------------------
 // Every tunable number and piece of copy for Growth Opportunity Discovery
-// lives here — same convention as `@/lib/growth/constants`. Gemini supplies
+// lives here — same convention as `@/lib/growth/constants`. OpenAI supplies
 // raw per-opportunity signals only; everything that turns those signals into
 // a final score, a label, or a ranking decision reads its numbers from this
 // file, never from an inline magic number.
@@ -11,11 +11,11 @@ import type { IntentSignalType, SourceType } from "./types";
 
 /** How many targeted search angles we build from Product + Growth
  * Intelligence. Fixed at 6 — "approximately 4-6 targeted searches", never a
- * runaway number of Gemini-driven Google searches per angle. */
+ * runaway number of OpenAI-driven web searches per angle. */
 export const SEARCH_ANGLES_COUNT = 6;
 
 /** Upper bound on how many raw opportunities we'll even attempt to validate
- * from a single Gemini response — a guardrail against a runaway generation,
+ * from a single OpenAI response — a guardrail against a runaway generation,
  * not a target. */
 export const MAX_RAW_OPPORTUNITIES = 30;
 
@@ -24,7 +24,7 @@ export const MAX_OPPORTUNITIES_RETURNED = 10;
 
 // ---------------------------------------------------------------------------
 // Growwwly Opportunity Score — computed entirely in code (`rank.ts`).
-// Gemini never produces this number, only the five raw signals it's built
+// OpenAI never produces this number, only the five raw signals it's built
 // from. Weights sum to 1 — verified by a unit test, not just this comment.
 // ---------------------------------------------------------------------------
 
@@ -45,7 +45,7 @@ export const RECENT_WITHIN_DAYS = 14;
 
 // ---------------------------------------------------------------------------
 // Freshness — the only signal computed from a fact (how old the discussion
-// is) rather than passed through from Gemini's own estimate. Gemini may
+// is) rather than passed through from OpenAI's own estimate. OpenAI may
 // supply `estimatedDaysAgo` when a search result exposes a date; when it
 // doesn't, freshness reads as unknown/low rather than guessed.
 // ---------------------------------------------------------------------------
@@ -57,12 +57,12 @@ export const FRESHNESS_THRESHOLDS: ReadonlyArray<{ withinDays: number; score: nu
   { withinDays: 180, score: 35 },
 ];
 
-/** Used when Gemini could not estimate an age for the discussion at all. */
+/** Used when OpenAI could not estimate an age for the discussion at all. */
 export const FRESHNESS_UNKNOWN_SCORE = 20;
 
 // ---------------------------------------------------------------------------
 // Copy — source types, intent signals, suggested actions. Deterministic
-// labels only; the narrative "reason" text stays Gemini's own, same as
+// labels only; the narrative "reason" text stays OpenAI's own, same as
 // `aiSignal.reasoning` in Growth Intelligence.
 // ---------------------------------------------------------------------------
 

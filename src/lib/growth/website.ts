@@ -13,13 +13,13 @@ import type { Bottleneck, Channel, ChannelResult } from "./types";
 
 // ---------------------------------------------------------------------------
 // The one-way bridge from Website Intelligence (Phase 3, external tools +
-// Gemini interpretation) into the Growth Engine (Phase 2, deterministic
+// OpenAI interpretation) into the Growth Engine (Phase 2, deterministic
 // TypeScript). The website module has no knowledge this file exists —
 // dependencies only flow this direction.
 //
 // Every composite score below is computed here, by us, from facts and
 // AI-interpretation fields Website Intelligence already produced. Nothing
-// here calls Gemini, and nothing here is itself AI-generated.
+// here calls OpenAI, and nothing here is itself AI-generated.
 // ---------------------------------------------------------------------------
 
 export interface WebsiteSignalBag {
@@ -27,12 +27,12 @@ export interface WebsiteSignalBag {
    * category score when available. Never invents a Lighthouse-shaped value
    * when Lighthouse is unavailable — it just re-normalizes over what it has. */
   technicalHealthScore: number;
-  /** 0–100. Mean of Gemini's positioning-clarity interpretation fields. */
+  /** 0–100. Mean of OpenAI's positioning-clarity interpretation fields. */
   positioningScore: number;
-  /** 0–100. Mean of Gemini's conversion-readiness interpretation fields
+  /** 0–100. Mean of OpenAI's conversion-readiness interpretation fields
    * (signupFriction is inverted first, since it runs the opposite direction). */
   conversionScore: number;
-  /** 0–100. Gemini's hero CTA-clarity estimate. */
+  /** 0–100. OpenAI's hero CTA-clarity estimate. */
   ctaScore: number;
   /** 0–100. Rough proxy from homepage word count — see AGENTS.md Phase 3 §14. */
   contentFoundationScore: number;

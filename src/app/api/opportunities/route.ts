@@ -15,8 +15,8 @@ import { discoverOpportunities } from "@/lib/opportunities/engine";
 // ("no strong opportunities found yet" is a UI decision, not an error).
 //
 // Runtime configuration:
-//   - nodejs: required — Gemini SDK uses Node networking APIs.
-//   - maxDuration: 120 s — Gemini grounded search (multi-query) can take
+//   - nodejs: required — OpenAI SDK uses Node networking APIs.
+//   - maxDuration: 120 s — OpenAI grounded search (multi-query) can take
 //     well above Vercel's default 10-15 s function timeout.
 // ---------------------------------------------------------------------------
 
@@ -24,6 +24,9 @@ export const runtime = "nodejs";
 export const maxDuration = 120;
 
 export async function POST(request: NextRequest) {
+  const requestStartTime = Date.now();
+  console.log("[opportunities] request started");
+
   try {
     let body: unknown;
     try {
@@ -60,6 +63,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log(`[opportunities] request completed: ${Date.now() - requestStartTime}ms`);
     return NextResponse.json(
       { success: true, data: { opportunities } },
       { status: 200 }

@@ -43,6 +43,7 @@ export interface OpenAiGenerateOptions {
   responseSchema: z.ZodTypeAny;
   temperature?: number;
   maxOutputTokens?: number;
+  images?: { mimeType: string; data: string }[];
 }
 
 let _client: OpenAI | null = null;
@@ -130,13 +131,14 @@ function errorCategory(
 }
 
 /** @deprecated kept for backward compatibility — prefer errorCategory() */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function messageForError(err: unknown): string {
   return errorCategory(err).publicMessage;
 }
 
 interface InputTurn {
   role: "user" | "assistant";
-  content: string;
+  content: string | Array<{ type: "input_text"; text: string } | { type: "input_image"; image_url: string; detail?: string }>;
 }
 
 async function createResponse(
@@ -151,7 +153,8 @@ async function createResponse(
       {
         model: OPENAI_MODEL,
         instructions: systemPrompt,
-        input,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        input: input as any,
         // gpt-5.6-sol is a reasoning-class model on this deployment — it
         // rejects `temperature` outright ("Unsupported parameter") rather than
         // ignoring it, and always reasons at its own fixed sampling settings.
@@ -197,7 +200,24 @@ export async function generateOpenAiStructuredResponse(
 
   const systemPrompt = `${options.systemPrompt}\n\nRespond with ONLY a single JSON object matching this JSON Schema exactly. No markdown code fences, no commentary before or after it.\n\nJSON Schema:\n${schemaJson}`;
 
-  const raw = await createResponse(client, systemPrompt, options.userPrompt, options);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let input: any = options.userPrompt;
+  
+  if (options.images && options.images.length > 0) {
+    input = [{
+      role: "user",
+      content: [
+        { type: "input_text", text: options.userPrompt },
+        ...options.images.map(img => ({
+          type: "input_image",
+          image_url: `data:${img.mimeType};base64,${img.data}`,
+          detail: "auto"
+        }))
+      ]
+    }];
+  }
+
+  const raw = await createResponse(client, systemPrompt, input, options);
   const attempt = tryParseAndValidate(raw, options.responseSchema);
   if (attempt.success) return attempt.data;
 
@@ -261,6 +281,7 @@ export async function generateOpenAiWebSearchResponse(
   const client = getClient();
 
   let response;
+  const startTime = Date.now();
   try {
     response = await client.responses.create(
       {
@@ -275,9 +296,13 @@ export async function generateOpenAiWebSearchResponse(
       { timeout: WEB_SEARCH_TIMEOUT_MS }
     );
   } catch (err) {
+    const elapsed = Date.now() - startTime;
+    const cat = errorCategory(err);
+    const status = err && typeof err === 'object' && 'status' in err ? (err as { status?: unknown }).status : 'unknown';
+    console.error(`[opportunities] OpenAI web_search failed\nstatus=${status}\nerror=${cat.publicMessage}\nelapsed=${elapsed}ms`);
     // Concise diagnostic only — never the full error object.
-    console.error(`[openai] web search request failed: ${messageForError(err)}`);
-    throw new Error(messageForError(err));
+    console.error(`[openai] web search request failed: ${cat.publicMessage}`);
+    throw new Error(cat.publicMessage);
   }
 
   const text = response.output_text;

@@ -20,7 +20,7 @@ import {
 import type { Channel, EffortLevel } from "./types";
 
 // ---------------------------------------------------------------------------
-// Pure, deterministic scoring math. No randomness, no I/O, no Gemini calls —
+// Pure, deterministic scoring math. No randomness, no I/O, no OpenAI calls —
 // every function here returns the same output for the same input, every
 // time. That determinism is what makes the engine trustworthy: the model
 // only ever supplies signals, this file turns signals into numbers.
@@ -49,7 +49,7 @@ export function calculateWeightedScore(
 }
 
 /** The channel's pure signal-fit score (0–100) — market signals, product-fit
- * signals, problem signals and Gemini's own channel relevance, blended by
+ * signals, problem signals and OpenAI's own channel relevance, blended by
  * the weighted framework in `CHANNEL_WEIGHTS`. Independent of confidence,
  * effort and constraints; those apply at the opportunity-score layer. */
 export function calculateChannelScore(bag: SignalBag, channel: Channel): number {

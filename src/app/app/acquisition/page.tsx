@@ -2,7 +2,7 @@
  * Acquisition — eight channels, ranked by Opportunity Score.
  *
  * The ranking, scores and recommendations here come from the deterministic
- * Growth Intelligence Engine (`@/lib/growth`), not from Gemini. Gemini's own
+ * Growth Intelligence Engine (`@/lib/growth`), not from OpenAI. OpenAI's own
  * raw relevance signal is still shown for each channel, clearly separated,
  * so the two are never confused.
  */
@@ -31,7 +31,7 @@ export default function AcquisitionPage() {
           <p className="t-body mt-5 max-w-[64ch]">
             Eight channels for {product.name}, ranked by Opportunity Score — a framework score our
             code computes from the model&apos;s market, product-fit and channel signals, tempered
-            by confidence, effort and the constraints you gave us. Not a score Gemini generated.
+            by confidence, effort and the constraints you gave us. Not a score OpenAI generated.
           </p>
           {summary.decisionType === 'test' && (
             <p className="t-body mt-4 max-w-[64ch] text-accent-ink">

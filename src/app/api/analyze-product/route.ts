@@ -94,12 +94,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4. Validate the Gemini response with Zod
+    // 4. Validate the OpenAI response with Zod
     const validated = ProductIntelligenceSchema.safeParse(rawResult);
 
     if (!validated.success) {
       console.error(
-        "[analyze-product] Gemini returned invalid structure:",
+        "[analyze-product] OpenAI returned invalid structure:",
         validated.error.issues
       );
       return NextResponse.json(
@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
 
     // 6. Run the deterministic Growth Intelligence Engine (Phase 2 + 3) on
     //    top of the validated Product Intelligence and (if present) Website
-    //    Intelligence. Gemini never sees this step and never produces the
+    //    Intelligence. OpenAI never sees this step and never produces the
     //    final channel scores or the highest-leverage decision — it's plain
     //    TypeScript, computed from the signals already returned above.
     let growthIntelligence;

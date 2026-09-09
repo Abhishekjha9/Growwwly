@@ -15,7 +15,7 @@ type PDFDocumentElement = Parameters<typeof renderToBuffer>[0];
 /**
  * Renders the existing, already-computed `AnalysisResult` into a PDF.
  *
- * This is purely a presentation/export layer: no Gemini call, no website
+ * This is purely a presentation/export layer: no OpenAI call, no website
  * fetch, no Lighthouse run, no Playwright capture, and no re-scoring. Every
  * value in the resulting PDF is read directly from the `analysis` argument.
  * `theme` (Light by default) only ever changes visual tokens — the

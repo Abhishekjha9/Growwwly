@@ -18,7 +18,7 @@ import type { Browser, BrowserType } from "playwright";
 
 // ---------------------------------------------------------------------------
 // Renders the page in a real, headless browser and captures a desktop and a
-// mobile screenshot — the evidence Gemini's visual analysis is grounded in.
+// mobile screenshot — the evidence OpenAI's visual analysis is grounded in.
 // A failure here (broken site, JS-heavy timeout, browser crash) degrades to
 // an uncaptured viewport, never a thrown error that aborts the whole
 // analysis.

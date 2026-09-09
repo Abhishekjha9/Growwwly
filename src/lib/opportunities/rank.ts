@@ -12,8 +12,8 @@ import { OpportunitySchema } from "./schemas";
 import type { SourceType } from "./types";
 
 // ---------------------------------------------------------------------------
-// Pure, deterministic ranking math. No randomness, no I/O, no Gemini
-// involvement — same contract as `@/lib/growth/scoring`. Gemini supplies raw
+// Pure, deterministic ranking math. No randomness, no I/O, no OpenAI
+// involvement — same contract as `@/lib/growth/scoring`. OpenAI supplies raw
 // per-opportunity signals only; every number and ordering decision below is
 // plain TypeScript.
 // ---------------------------------------------------------------------------
@@ -22,7 +22,7 @@ export function clampScore(n: number): number {
   return Math.min(100, Math.max(0, Math.round(n)));
 }
 
-/** Known, unambiguous domains override Gemini's own `sourceType`
+/** Known, unambiguous domains override OpenAI's own `sourceType`
  * classification — a structural fact code can verify beats a model guess. */
 const DOMAIN_SOURCE_TYPE_OVERRIDES: Array<{ pattern: RegExp; sourceType: SourceType }> = [
   { pattern: /(^|\.)reddit\.com$/i, sourceType: "reddit" },
@@ -166,7 +166,23 @@ export function rankOpportunities(raws: RawOpportunity[], context: RankContext =
     }
   }
 
-  return Array.from(byUrl.values())
+  const ranked = Array.from(byUrl.values())
+    .sort((a, b) => b.opportunityScore - a.opportunityScore || a.title.localeCompare(b.title));
+
+  // Apply a gentle diversity penalty to prevent a single domain from completely
+  // dominating the feed, while still allowing exceptionally strong results to
+  // punch through.
+  const domainCounts = new Map<string, number>();
+  for (const opp of ranked) {
+    const count = domainCounts.get(opp.domain) || 0;
+    domainCounts.set(opp.domain, count + 1);
+    if (count >= 2) {
+      // Gentle 5-point penalty for the 3rd result, 10 for the 4th, etc.
+      opp.opportunityScore = Math.max(0, opp.opportunityScore - (count - 1) * 5);
+    }
+  }
+
+  return ranked
     .sort((a, b) => b.opportunityScore - a.opportunityScore || a.title.localeCompare(b.title))
     .slice(0, MAX_OPPORTUNITIES_RETURNED);
 }

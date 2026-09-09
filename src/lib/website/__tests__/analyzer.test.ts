@@ -12,7 +12,7 @@ vi.mock("../fetch", () => ({ fetchHtml: (...args: unknown[]) => fetchHtmlMock(..
 vi.mock("../extract", () => ({ extractSeoEvidence: (...args: unknown[]) => extractSeoEvidenceMock(...args) }));
 vi.mock("../browser", () => ({ captureScreenshots: (...args: unknown[]) => captureScreenshotsMock(...args) }));
 vi.mock("../lighthouse", () => ({ runLighthouseAudit: (...args: unknown[]) => runLighthouseAuditMock(...args) }));
-vi.mock("../gemini", () => ({ interpretWebsite: (...args: unknown[]) => interpretWebsiteMock(...args) }));
+vi.mock("../openai", () => ({ interpretWebsite: (...args: unknown[]) => interpretWebsiteMock(...args) }));
 
 const { analyzeWebsite } = await import("../analyzer");
 
@@ -160,7 +160,7 @@ describe("Website inspection failure handling (§15)", () => {
     expect(result.interpretation).not.toBeNull();
   });
 
-  it("marks status 'partial' when the Gemini interpretation fails but facts are still returned", async () => {
+  it("marks status 'partial' when the OpenAI interpretation fails but facts are still returned", async () => {
     fetchHtmlMock.mockResolvedValue({ crawl: OK_CRAWL, html: "<html></html>" });
     extractSeoEvidenceMock.mockReturnValue(SEO);
     captureScreenshotsMock.mockResolvedValue(CAPTURED_VISUAL);

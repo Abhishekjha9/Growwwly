@@ -114,7 +114,7 @@ export function healthyWebsiteFixture(): WebsiteIntelligence {
   return baseWebsite();
 }
 
-/** Strong technical facts but Gemini reads the positioning as unclear. */
+/** Strong technical facts but OpenAI reads the positioning as unclear. */
 export function weakPositioningWebsiteFixture(): WebsiteIntelligence {
   return baseWebsite({
     interpretation: baseInterpretation({
@@ -190,7 +190,7 @@ export function weakTechnicalWebsiteFixture(): WebsiteIntelligence {
   });
 }
 
-/** Gemini's own confidence in its interpretation is low — the diagnosis
+/** OpenAI's own confidence in its interpretation is low — the diagnosis
  * shouldn't be trusted enough to override a channel-pursuit action. */
 export function lowConfidenceWebsiteFixture(): WebsiteIntelligence {
   return baseWebsite({

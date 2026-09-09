@@ -1,8 +1,7 @@
 import type { AnalysisResult } from "@/types/analysis";
 import {
-  generateGroundedResponse,
-  type GeminiGroundingSource,
-} from "@/lib/ai/gemini";
+  generateOpenAiWebSearchResponse,
+} from "@/lib/ai/providers/openai";
 import {
   OPPORTUNITY_DISCOVERY_SYSTEM_PROMPT,
   buildOpportunityDiscoveryUserPrompt,
@@ -10,7 +9,7 @@ import {
 import { RawOpportunitySchema, type RawOpportunity } from "./schemas";
 import { MAX_RAW_OPPORTUNITIES } from "./constants";
 import { normalizeUrl, extractDomain } from "./rank";
-import type { SearchIntent, SourceType } from "./types";
+import type { SearchIntent } from "./types";
 
 // ---------------------------------------------------------------------------
 // Search intent construction — pure, deterministic, no I/O. Builds the
@@ -18,17 +17,6 @@ import type { SearchIntent, SourceType } from "./types";
 // rather than ever searching for the product name alone.
 // ---------------------------------------------------------------------------
 
-/**
- * Builds a fixed set of targeted search angles from Product + Growth
- * Intelligence. The Google Search grounding tool ultimately chooses its own
- * literal queries — these angles are the guidance it's instructed to cover,
- * not a controllable query list.
- *
- * For community-oriented channels (communities, referrals) we add explicit
- * ecosystem-specific angles so the grounded search explores Reddit and
- * Hacker News beyond the default abstract angles. These are product/problem-
- * specific, never generic keyword dumps.
- */
 export function buildSearchIntents(analysis: AnalysisResult): SearchIntent[] {
   const { product, customer, problem } = analysis.productIntelligence;
   const { topChannel } = analysis.growthIntelligence.summary;
@@ -60,9 +48,6 @@ export function buildSearchIntents(analysis: AnalysisResult): SearchIntent[] {
     },
   ];
 
-  // For community-channel products, add explicit ecosystem angles so the
-  // grounded search actually covers Reddit and Hacker News. These are
-  // problem/customer-specific, not generic platform dumps.
   if (topChannel === "communities" || topChannel === "referrals") {
     base.push(
       {
@@ -76,22 +61,16 @@ export function buildSearchIntents(analysis: AnalysisResult): SearchIntent[] {
     );
   }
 
-  // Deduplicate by angle+description identity (the added community angles
-  // reuse the same angle values intentionally — the description content is
-  // what differs).
   return base;
 }
 
 // ---------------------------------------------------------------------------
-// Web discovery call (Gemini + Google Search grounding) — the intended
-// architecture per the design spec. Grounding sources provide the real URLs
-// we validate opportunities against; we never trust an AI-generated URL
-// that didn't come from an actual Google Search result.
+// Web discovery call (OpenAI web_search) — grounded in real URLs.
 // ---------------------------------------------------------------------------
 
 export interface RawDiscoveryResult {
   opportunities: RawOpportunity[];
-  groundingSources: GeminiGroundingSource[];
+  groundingSources: { url: string; title?: string }[];
 }
 
 function stripJsonFences(text: string): string {
@@ -100,8 +79,6 @@ function stripJsonFences(text: string): string {
   return fenced ? fenced[1] : trimmed;
 }
 
-/** Normalizes a source URI from Gemini grounding metadata for set-membership
- * checks. Tolerant of null/undefined. */
 function normalizeGroundingUri(uri: string | null | undefined): string {
   if (!uri) return "";
   return normalizeUrl(uri);
@@ -111,7 +88,8 @@ export async function discoverRawOpportunities(
   analysis: AnalysisResult,
   intents: SearchIntent[]
 ): Promise<RawDiscoveryResult> {
-  const userPrompt = buildOpportunityDiscoveryUserPrompt(analysis, intents);
+  const topIntents = intents.slice(0, 3);
+  const userPrompt = buildOpportunityDiscoveryUserPrompt(analysis, topIntents);
 
   console.log(`[opportunities] generated ${intents.length} search intents`);
   if (process.env.NODE_ENV !== "production") {
@@ -120,25 +98,28 @@ export async function discoverRawOpportunities(
     }
   }
 
-  const { text, groundingSources, webSearchQueries } =
-    await generateGroundedResponse({
+  console.log("[opportunities] search intents generated");
+  console.log("[opportunities] OpenAI web_search started");
+  const webSearchStart = Date.now();
+
+  const { text, citations: groundingSources } =
+    await generateOpenAiWebSearchResponse({
       systemPrompt: OPPORTUNITY_DISCOVERY_SYSTEM_PROMPT,
       userPrompt,
-      temperature: 0.3,
     });
 
+  console.log(`[opportunities] OpenAI web_search finished: ${Date.now() - webSearchStart}ms`);
+
   if (process.env.NODE_ENV !== "production") {
-    console.log(
-      `[opportunities] grounding queries: ${webSearchQueries.join(" | ") || "(none reported)"}`
-    );
     console.log(`[opportunities] grounding sources returned: ${groundingSources.length}`);
   }
 
+  console.log("[opportunities] response parsing started");
   let parsed: unknown;
   try {
     parsed = JSON.parse(stripJsonFences(text));
   } catch {
-    throw new Error("Gemini returned invalid JSON for opportunity discovery.");
+    throw new Error("OpenAI returned invalid JSON for opportunity discovery.");
   }
 
   const candidateList =
@@ -148,28 +129,21 @@ export async function discoverRawOpportunities(
       ? (parsed as { opportunities: unknown[] }).opportunities
       : [];
 
-  // Ground truth for "is this URL real": every URI from Google Search
-  // grounding metadata that Gemini actually retrieved. We match normalised
-  // opportunity URLs against this set. If grounding returned no sources at
-  // all (network issue, API tier limit, etc.) we still process candidates
-  // but log a warning — keeping some results is better than discarding all.
+  console.log("[opportunities] URL verification started");
   const knownNormUrls = new Set(
-    groundingSources.map((s) => normalizeGroundingUri(s.uri)).filter(Boolean)
+    groundingSources.map((s) => normalizeGroundingUri(s.url)).filter(Boolean)
   );
 
-  // Also index by domain so that a search result URL whose exact path
-  // differs from what the model cited (common with Reddit/HN thread variants)
-  // can still be validated by domain membership.
   const knownDomains = new Set(
     groundingSources
-      .map((s) => (s.uri ? extractDomain(s.uri) : s.domain ?? ""))
+      .map((s) => (s.url ? extractDomain(s.url) : ""))
       .filter(Boolean)
   );
 
   const noGroundingSources = groundingSources.length === 0;
   if (noGroundingSources) {
     console.warn(
-      "[opportunities] Gemini returned no grounding sources — accepting candidates without URL verification."
+      "[opportunities] OpenAI returned no grounding sources — accepting candidates without URL verification."
     );
   }
 
@@ -190,8 +164,6 @@ export async function discoverRawOpportunities(
     const normUrl = normalizeUrl(opp.url);
     const domain = extractDomain(opp.url);
 
-    // Accept if: no grounding sources available (fallback), exact URL match,
-    // or domain appears in the set of domains Google actually searched.
     const urlVerified =
       noGroundingSources ||
       knownNormUrls.has(normUrl) ||
@@ -209,7 +181,6 @@ export async function discoverRawOpportunities(
     sourceDistribution[st] = (sourceDistribution[st] ?? 0) + 1;
   }
 
-  // Log source distribution for server-side diagnostics.
   const distStr = Object.entries(sourceDistribution)
     .map(([k, v]) => `${k}=${v}`)
     .join(", ");

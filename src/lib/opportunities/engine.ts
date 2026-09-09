@@ -12,7 +12,7 @@ import type { Opportunity } from "./schemas";
 //         buildSearchIntents()            <- pure, deterministic
 //                    │
 //                    ▼
-//   Gemini + Google Search grounding      <- search.ts
+//   OpenAI + web_search grounding           <- search.ts
 //                    │
 //                    ▼
 //        Zod-validated raw opportunities
@@ -23,7 +23,7 @@ import type { Opportunity } from "./schemas";
 //                    ▼
 //              Opportunity Feed
 //
-// Mirrors the Growth Intelligence Engine's split: Gemini only ever supplies
+// Mirrors the Growth Intelligence Engine's split: OpenAI only ever supplies
 // raw signals, and every score, filter, or ordering decision is plain
 // TypeScript (see AGENTS.md Opportunity Feed §6).
 // ---------------------------------------------------------------------------
@@ -34,6 +34,7 @@ export async function discoverOpportunities(analysis: AnalysisResult): Promise<O
 
   const productDomain = extractProductDomain(analysis);
 
+  console.log("[opportunities] ranking started");
   return rankOpportunities(raw, { productDomain });
 }
 

@@ -47,7 +47,7 @@ export async function runLighthouseAudit(url: string): Promise<PerformanceEviden
   // import fails, we return unavailable() immediately.
   let chromiumExecPath: string;
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const { chromium } = (await import("playwright")) as { chromium: { executablePath: () => string } };
     chromiumExecPath = chromium.executablePath();
   } catch {

@@ -2,7 +2,7 @@
  * Website — what Growwwly actually found by inspecting the live site.
  *
  * Every number on this page is either "measured" (Cheerio facts, Lighthouse
- * scores) or an "AI signal" (Gemini's interpretation of screenshots and
+ * scores) or an "AI signal" (OpenAI's interpretation of screenshots and
  * evidence) — never blended, and never presented as real user behavior or
  * funnel data. See `@/lib/website/types.ts`.
  */
@@ -118,7 +118,7 @@ export default function WebsitePage() {
           <Label className="mb-4">Website intelligence</Label>
           <h1 className="t-h1">{websiteIntelligence.crawl.finalUrl ?? websiteIntelligence.url}</h1>
           <p className="t-body mt-5 max-w-[64ch]">
-            Growwwly fetched this page, rendered it in a real browser, and had Gemini interpret
+            Growwwly fetched this page, rendered it in a real browser, and had OpenAI interpret
             the result. Measured facts and AI interpretation are kept separate throughout.
           </p>
           {websiteIntelligence.status === 'partial' && (

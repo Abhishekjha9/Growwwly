@@ -133,9 +133,9 @@ describe("generateGrowthReport theming", () => {
     }
   });
 
-  it("13. never calls Gemini, in either theme", async () => {
+  it("13. never calls OpenAI, in either theme", async () => {
     vi.resetModules();
-    vi.doMock("@/lib/ai/gemini", () => ({
+    vi.doMock("@/lib/ai/openai", () => ({
       generateStructuredResponse: () => {
         throw new Error("generateStructuredResponse must not be called by the report generator");
       },
@@ -145,7 +145,7 @@ describe("generateGrowthReport theming", () => {
     const analysis = buildAnalysis(developerApiFixture(), healthyWebsiteFixture());
     expectValidPdf(await freshGenerate(analysis, light));
     expectValidPdf(await freshGenerate(analysis, dark));
-    vi.doUnmock("@/lib/ai/gemini");
+    vi.doUnmock("@/lib/ai/openai");
     vi.resetModules();
   });
 

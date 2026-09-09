@@ -93,7 +93,7 @@ describe("normalizeUrl / extractDomain", () => {
 });
 
 describe("scoreOpportunity", () => {
-  it("overrides sourceType for known domains regardless of what Gemini declared", () => {
+  it("overrides sourceType for known domains regardless of what OpenAI declared", () => {
     const raw = baseRawOpportunity({
       url: "https://news.ycombinator.com/item?id=12345",
       sourceType: "article",

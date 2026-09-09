@@ -2,7 +2,7 @@
  * Growth Opportunities — the first concrete step of the Autonomous Growth
  * Engine. Reads the *existing* analysis result (`useAnalysis`) — no second
  * analysis state — and, only when the user explicitly asks, searches the
- * live web via Gemini + Google Search grounding for real discussions where
+ * live web via OpenAI + Google Search grounding for real discussions where
  * this product's highest-leverage channel could act. Every opportunity shown
  * carries a real source URL; nothing here posts anything automatically.
  */
