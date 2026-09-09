@@ -1,5 +1,5 @@
 import * as chromeLauncher from "chrome-launcher";
-import lighthouse, { type Flags, type Result } from "lighthouse";
+import type { Flags, Result } from "lighthouse";
 import { LIGHTHOUSE_TIMEOUT_MS } from "./constants";
 import { assertSafeUrl } from "./url";
 import type { PerformanceEvidence } from "./types";
@@ -54,6 +54,19 @@ export async function runLighthouseAudit(url: string): Promise<PerformanceEviden
     return unavailable("Browser binary not available in this environment.");
   }
 
+  // Dynamic import for lighthouse — defers module resolution.
+  // Lighthouse attempts to load static template files (standalone-flow-template.html)
+  // at import time, which crashes the route handler on Vercel because those
+  // files aren't included in the serverless bundle. We dynamically import it here
+  // so the route can still load and gracefully return an unavailable state if needed.
+  let lh: typeof import("lighthouse") | typeof import("lighthouse").default;
+  try {
+    const imported = await import("lighthouse");
+    lh = imported.default || imported;
+  } catch {
+    return unavailable("Audit engine not available in this environment.");
+  }
+
   let chrome: chromeLauncher.LaunchedChrome | null = null;
   try {
     chrome = await chromeLauncher.launch({
@@ -71,7 +84,7 @@ export async function runLighthouseAudit(url: string): Promise<PerformanceEviden
       logLevel: "silent",
       onlyCategories: ["performance", "accessibility", "best-practices", "seo"],
     };
-    const runPromise = lighthouse(url, flags);
+    const runPromise = (lh as typeof import("lighthouse").default)(url, flags);
     // Swallow a late rejection/resolution after we've already timed out —
     // otherwise this becomes an unhandled rejection once `chrome.kill()`
     // below tears down the connection it was using.
