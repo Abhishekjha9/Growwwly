@@ -170,6 +170,8 @@ export default function AnalyzePage() {
     <form onSubmit={start} className="flex flex-col gap-5">
       <TextField
         label="Product name"
+        tone="burgundy"
+        labelClassName="text-ghost"
         autoFocus
         required
         value={form.name}
@@ -178,6 +180,8 @@ export default function AnalyzePage() {
       />
       <TextAreaField
         label="What does it do?"
+        tone="burgundy"
+        labelClassName="text-ghost"
         required
         value={form.description}
         onChange={field('description')}
@@ -185,6 +189,8 @@ export default function AnalyzePage() {
       />
       <TextField
         label="Website URL"
+        tone="burgundy"
+        labelClassName="text-ghost"
         type="url"
         value={form.url}
         onChange={field('url')}
@@ -194,7 +200,7 @@ export default function AnalyzePage() {
       <button
         type="button"
         onClick={() => setShowMore((v) => !v)}
-        className="t-meta -mt-1 self-start text-faint transition-colors duration-150 hover:text-ink"
+        className="t-meta -mt-1 self-start text-ghost transition-colors duration-150 hover:text-canvas"
       >
         {showMore ? 'Hide additional context' : 'Add more context (optional)'}
       </button>
@@ -209,21 +215,27 @@ export default function AnalyzePage() {
             transition={{ duration: reduced ? 0 : 0.32, ease: EASE.out }}
             className="overflow-hidden"
           >
-            <div className="grid grid-cols-1 gap-5 border-t border-hairline pt-5 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-5 border-t border-accent-line/30 pt-5 sm:grid-cols-2">
               <TextField
                 label="Target customer"
+                tone="burgundy"
+                labelClassName="text-ghost"
                 value={form.targetCustomer}
                 onChange={field('targetCustomer')}
                 placeholder="e.g. B2B SaaS founders"
               />
               <TextField
                 label="Pricing"
+                tone="burgundy"
+                labelClassName="text-ghost"
                 value={form.pricing}
                 onChange={field('pricing')}
                 placeholder="e.g. $29/mo, freemium"
               />
               <TextField
                 label="Current users"
+                tone="burgundy"
+                labelClassName="text-ghost"
                 type="number"
                 min={0}
                 value={form.currentUsers}
@@ -232,12 +244,16 @@ export default function AnalyzePage() {
               />
               <TextField
                 label="Monthly marketing budget"
+                tone="burgundy"
+                labelClassName="text-ghost"
                 value={form.budget}
                 onChange={field('budget')}
                 placeholder="e.g. $1,000"
               />
               <TextField
                 label="Marketing experience"
+                tone="burgundy"
+                labelClassName="text-ghost"
                 className="sm:col-span-2"
                 value={form.marketingExperience}
                 onChange={field('marketingExperience')}
@@ -250,10 +266,9 @@ export default function AnalyzePage() {
 
       <Button
         type="submit"
-        variant="primary"
         size="lg"
         disabled={!form.name.trim() || !form.description.trim()}
-        className="mt-2 w-full sm:w-auto sm:self-start"
+        className="mt-2 w-full sm:w-auto sm:self-start !bg-canvas !text-accent hover:!bg-surface !border-none !shadow-none"
       >
         Analyze
       </Button>
@@ -304,10 +319,10 @@ export default function AnalyzePage() {
               </div>
 
               {/* Right — the form, in a proper card */}
-              <div className="rounded-[18px] border border-hairline bg-surface p-7 shadow-soft sm:p-9">
-                <Label>New analysis</Label>
-                <h2 className="t-h2 mt-3">Analyze your SaaS</h2>
-                <p className="t-meta mt-2 max-w-[42ch]">
+              <div className="rounded-[18px] border border-accent-line/20 bg-accent p-7 shadow-soft sm:p-9">
+                <Label className="!text-ghost">New analysis</Label>
+                <h2 className="t-h2 mt-3 text-canvas">Analyze your SaaS</h2>
+                <p className="t-meta mt-2 max-w-[42ch] text-ghost">
                   AI reads it into a product, customer and growth-signal profile.
                 </p>
                 <div className="mt-7">{formFields}</div>
