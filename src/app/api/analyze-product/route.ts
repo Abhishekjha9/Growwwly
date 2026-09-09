@@ -16,7 +16,21 @@ import type { WebsiteIntelligence } from "@/types/website";
 
 // ---------------------------------------------------------------------------
 // POST /api/analyze-product
+//
+// Runtime configuration:
+//   - nodejs: required — the OpenAI SDK uses Node APIs (http, streams, etc.)
+//     that are not available on the Edge runtime. Without this, Vercel will
+//     default to the Edge runtime and the SDK will fail to initialise.
+//   - maxDuration: 120 s — GPT-5.6-Sol (reasoning-class) regularly takes
+//     30-90 s for a structured Product Intelligence call on Azure. Vercel's
+//     default (10 s Hobby / 15 s Pro) kills the function before the AI can
+//     respond, causing the frontend to receive a 502/504 with no JSON body,
+//     which becomes the "unexpected response" error on the client.
+//     120 s > STRUCTURED_RESPONSE_TIMEOUT_MS (90 s) + website analysis headroom.
 // ---------------------------------------------------------------------------
+
+export const runtime = "nodejs";
+export const maxDuration = 120;
 
 export async function POST(request: NextRequest) {
   try {
@@ -50,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     const input = parsed.data;
 
-    // 3. Build the prompt and call Gemini
+    // 3. Build the prompt and call the configured AI provider (OpenAI by default)
     const userPrompt = buildProductAnalysisUserPrompt(input);
 
     let rawResult: unknown;
@@ -63,11 +77,18 @@ export async function POST(request: NextRequest) {
         maxOutputTokens: PRODUCT_ANALYSIS_MAX_OUTPUT_TOKENS,
       });
     } catch (err) {
-      console.error("[analyze-product] AI provider error:", err);
+      // Log the error class + message so Vercel function logs show the exact
+      // failure category (timed_out, authentication, rate_limit, server_error,
+      // connection) without including API keys or full request bodies.
+      const label = err instanceof Error ? `${err.constructor.name}: ${err.message}` : String(err);
+      console.error(`[analyze-product] AI provider error: ${label}`);
       return NextResponse.json(
         {
           success: false,
-          error: "AI analysis failed. Please try again later.",
+          error:
+            err instanceof Error && err.message
+              ? err.message
+              : "AI analysis failed. Please try again later.",
         },
         { status: 500 }
       );

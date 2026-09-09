@@ -25,6 +25,17 @@ export async function analyzeProduct(
   try {
     data = await response.json()
   } catch {
+    // The server returned a non-JSON body — most likely a gateway timeout
+    // (Vercel 504) or a crash before the response was written. Surface a
+    // specific, actionable message rather than the generic "unexpected response."
+    if (response.status === 504 || response.status === 524) {
+      throw new AnalyzeProductError(
+        'The analysis took too long and timed out. Please try again — if it keeps failing, try a shorter product description.'
+      )
+    }
+    if (response.status === 502 || response.status === 503) {
+      throw new AnalyzeProductError('The server is temporarily unavailable. Please try again in a moment.')
+    }
     throw new AnalyzeProductError('The server returned an unexpected response. Please try again.')
   }
 
