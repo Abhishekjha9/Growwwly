@@ -1,9 +1,12 @@
 import * as chromeLauncher from "chrome-launcher";
 import lighthouse, { type Flags, type Result } from "lighthouse";
-import { chromium } from "playwright";
 import { LIGHTHOUSE_TIMEOUT_MS } from "./constants";
 import { assertSafeUrl } from "./url";
 import type { PerformanceEvidence } from "./types";
+// NOTE: playwright is NOT imported statically here — see browser.ts for the
+// full explanation. `chromium.executablePath()` is used to locate the
+// Chromium binary for chrome-launcher. On Vercel there is no binary, so the
+// dynamic import() below will throw and we return unavailable() gracefully.
 
 // ---------------------------------------------------------------------------
 // Objective performance/accessibility/best-practices/SEO measurement via
@@ -39,10 +42,22 @@ export async function runLighthouseAudit(url: string): Promise<PerformanceEviden
     return unavailable("This host cannot be inspected.");
   }
 
+  // Dynamic import — defers playwright module resolution to call time so the
+  // module can be loaded even when no Chromium binary exists (Vercel). If the
+  // import fails, we return unavailable() immediately.
+  let chromiumExecPath: string;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { chromium } = (await import("playwright")) as { chromium: { executablePath: () => string } };
+    chromiumExecPath = chromium.executablePath();
+  } catch {
+    return unavailable("Browser binary not available in this environment.");
+  }
+
   let chrome: chromeLauncher.LaunchedChrome | null = null;
   try {
     chrome = await chromeLauncher.launch({
-      chromePath: chromium.executablePath(),
+      chromePath: chromiumExecPath,
       chromeFlags: ["--headless=new", "--no-sandbox", "--disable-gpu"],
     });
   } catch {

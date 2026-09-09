@@ -1,4 +1,3 @@
-import { chromium, devices, type Browser } from "playwright";
 import {
   DESKTOP_VIEWPORT,
   MOBILE_VIEWPORT,
@@ -8,6 +7,14 @@ import {
 } from "./constants";
 import { assertSafeUrl } from "./url";
 import type { ViewportCapture, VisualEvidence } from "./types";
+// NOTE: playwright is NOT imported statically here. A static top-level import
+// of playwright crashes on Vercel (and any serverless sandbox) because
+// playwright-core resolves browsers.json at import time, which doesn't exist
+// outside of a desktop/CI environment. We use a dynamic import() inside
+// captureScreenshots so module resolution happens at call time, where the
+// existing try/catch degrades gracefully to empty captures instead of crashing
+// the entire route handler before any AI analysis begins.
+import type { Browser, BrowserType } from "playwright";
 
 // ---------------------------------------------------------------------------
 // Renders the page in a real, headless browser and captures a desktop and a
@@ -23,6 +30,8 @@ function emptyCapture(width: number, height: number): ViewportCapture {
 
 async function captureViewport(
   browser: Browser,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  devices: Record<string, any>,
   url: string,
   kind: "desktop" | "mobile"
 ): Promise<ViewportCapture> {
@@ -85,9 +94,25 @@ export async function captureScreenshots(url: string): Promise<VisualEvidence> {
     };
   }
 
+  // Dynamic import — defers playwright module resolution to call time. On
+  // Vercel (and other sandboxes without a Chromium binary), this will throw
+  // because playwright-core/browsers.json doesn't exist; the catch below
+  // returns empty captures rather than crashing the route.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let pw: { chromium: BrowserType; devices: Record<string, any> };
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    pw = (await import("playwright")) as { chromium: BrowserType; devices: Record<string, any> };
+  } catch {
+    return {
+      desktop: emptyCapture(DESKTOP_VIEWPORT.width, DESKTOP_VIEWPORT.height),
+      mobile: emptyCapture(MOBILE_VIEWPORT.width, MOBILE_VIEWPORT.height),
+    };
+  }
+
   let browser: Browser | null = null;
   try {
-    browser = await chromium.launch({ args: ["--no-sandbox"] });
+    browser = await pw.chromium.launch({ args: ["--no-sandbox"] });
   } catch {
     return {
       desktop: emptyCapture(DESKTOP_VIEWPORT.width, DESKTOP_VIEWPORT.height),
@@ -97,8 +122,8 @@ export async function captureScreenshots(url: string): Promise<VisualEvidence> {
 
   try {
     const [desktop, mobile] = await Promise.all([
-      captureViewport(browser, url, "desktop"),
-      captureViewport(browser, url, "mobile"),
+      captureViewport(browser, pw.devices, url, "desktop"),
+      captureViewport(browser, pw.devices, url, "mobile"),
     ]);
     return { desktop, mobile };
   } finally {
