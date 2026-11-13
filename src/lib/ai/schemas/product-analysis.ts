@@ -49,7 +49,7 @@ export type ProductAnalysisRequest = z.infer<
 >;
 
 // ---------------------------------------------------------------------------
-// RESPONSE SCHEMA — validates the structured JSON returned by OpenAI
+// RESPONSE SCHEMA — validates the structured JSON returned by the AI
 // ---------------------------------------------------------------------------
 
 /** 0–100 signal score */

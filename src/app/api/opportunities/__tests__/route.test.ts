@@ -8,6 +8,8 @@ vi.mock("@/lib/opportunities/engine", () => ({
 }));
 
 const { POST } = await import("../route");
+const { SearchProviderError } = await import("@/lib/search");
+const { AIProviderError } = await import("@/lib/ai/errors");
 
 function makeRequest(body: unknown): NextRequest {
   return new NextRequest("http://localhost/api/opportunities", {
@@ -71,5 +73,34 @@ describe("POST /api/opportunities", () => {
     const body = await response.json();
     expect(response.status).toBe(200);
     expect(body.data.opportunities).toEqual([]);
+  });
+
+  it.each([
+    ["configuration", 503, /TAVILY_API_KEY/],
+    ["authentication", 502, /rejected/],
+    ["quota_exhausted", 429, /search quota limits/],
+    ["rate_limited", 429, /rate-limiting/],
+    ["service_unavailable", 503, /search service is temporarily unavailable/],
+    ["timeout", 504, /timed out/],
+    ["usage_check_failed", 503, /couldn't be verified/],
+  ] as const)("maps search error %s to HTTP %i with a specific message", async (kind, status, message) => {
+    discoverOpportunitiesMock.mockRejectedValue(
+      new SearchProviderError(kind, "internal", { provider: "tavily", retryAfterSeconds: kind === "rate_limited" ? 30 : undefined })
+    );
+    const response = await POST(makeRequest({ analysis: buildAnalysis() }));
+    const body = await response.json();
+    expect(response.status).toBe(status);
+    expect(body.success).toBe(false);
+    expect(body.error).toMatch(message);
+    expect(body.errorKind).toBe(`search_${kind}`);
+    if (kind === "rate_limited") expect(response.headers.get("Retry-After")).toBe("30");
+  });
+
+  it("reports an AI interpretation failure distinctly from a search failure", async () => {
+    discoverOpportunitiesMock.mockRejectedValue(new AIProviderError("invalid_output", "x", { provider: "gemini" }));
+    const response = await POST(makeRequest({ analysis: buildAnalysis() }));
+    const body = await response.json();
+    expect(response.status).toBe(502);
+    expect(body.error).toMatch(/Search results were found, but the AI/);
   });
 });

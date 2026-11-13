@@ -55,7 +55,7 @@ Growwwly acts as a programmatic growth marketer. By combining explicit user inpu
 
 | Feature | Description |
 |---|---|
-| 🤖 **AI-Powered Profiling** | Uses OpenAI to extract structured intelligence from product descriptions and website context. |
+| 🤖 **AI-Powered Profiling** | Uses a pluggable AI provider (Gemini free tier by default, OpenAI-compatible available) to extract structured intelligence from product descriptions and website context. |
 | 🌐 **Headless Website Crawling** | Integrates Playwright to capture actual desktop/mobile visual evidence and Cheerio for objective DOM extraction. |
 | ⚡ **Performance & SEO Diagnostics** | Utilizes Lighthouse integration and custom extractors to evaluate technical marketing readiness. |
 | 📊 **Deterministic Growth Engine** | Ranks 8+ acquisition channels (Outbound, SEO, Paid, etc.) based on an algorithm processing AI signals. |
@@ -71,10 +71,10 @@ graph TD
     B -- Yes --> D[Cheerio: Extract DOM/SEO];
     B -- No --> E[Bypass Crawling];
     
-    C --> F[OpenAI: Website Intelligence];
+    C --> F[AI: Website Intelligence];
     D --> F;
     
-    E --> G[OpenAI: Product Intelligence];
+    E --> G[AI: Product Intelligence];
     F --> G;
     
     G --> H[Deterministic Growth Engine];
@@ -89,7 +89,7 @@ Growwwly is built around a hybrid AI-deterministic pipeline:
 1.  **Frontend (Next.js App Router):** Manages a multi-phase animated loading state while streaming responses. Uses React 19 and Tailwind CSS v4 for a highly polished, heavily-animated UI via Framer Motion.
 2.  **State Management (React Context):** Session persistence handles storing complex AI responses across page reloads while actively stripping massive base64 image strings to respect `sessionStorage` quota limits.
 3.  **Website Extraction (`lib/website`):** A headless Playwright instance runs securely, gathering visual data and rendering screenshots, while Cheerio handles objective SEO data scraping. URL safety checks protect against SSRF.
-4.  **AI Providers (`lib/ai`):** Constructs highly specific prompt chains relying on structured outputs (JSON Schemas) from OpenAI to interpret subjective product signals.
+4.  **AI Providers (`lib/ai`):** Constructs highly specific prompt chains relying on structured outputs (JSON Schemas) from the active AI provider to interpret subjective product signals.
 5.  **Growth Core (`lib/growth`):** The actual decision-making layer is *not* LLM-based. It is a deterministic, math-driven engine that takes the AI's interpreted signals (e.g., budget constraint = low, target = enterprise) and calculates opportunity scores for various channels.
 
 ## 🛠 Tech Stack
@@ -102,7 +102,7 @@ Growwwly is built around a hybrid AI-deterministic pipeline:
 | **Animations** | Framer Motion |
 | **Web Crawling** | Playwright (Screenshots), Cheerio (DOM) |
 | **Performance Tools** | Lighthouse |
-| **AI Inference** | OpenAI Node SDK |
+| **AI Inference** | Provider adapters (`lib/ai/providers`): Gemini REST (default), OpenAI Node SDK |
 | **Schema Validation**| Zod |
 | **Testing** | Vitest |
 
@@ -118,7 +118,7 @@ src/
 ├── data/                 # Static growth parameters and definitions
 ├── growthcore/           # Animated SVG UI components for loading states
 ├── lib/                  # Core business logic
-│   ├── ai/               # OpenAI provider configuration and prompt schemas
+│   ├── ai/               # Provider-agnostic AI client, adapters, prompts and schemas
 │   ├── growth/           # Deterministic growth scoring engine
 │   └── website/          # Playwright crawling, Cheerio extraction, Lighthouse
 └── types/                # Strict TypeScript definitions for internal data flow
@@ -145,13 +145,14 @@ Rather than relying on LLMs for final strategy recommendations (which often resu
    npm install
    ```
 3. **Environment Configuration:**
-   Copy the example environment file and add your OpenAI key:
+   Copy the example environment file and add your Gemini key (use a Google
+   Cloud project with **no billing account** — Growwwly runs on the free tier only):
    ```bash
    cp .env.local.example .env.local
    ```
-   Add your API key:
    ```env
-   OPENAI_API_KEY="sk-..."
+   AI_PROVIDER=gemini
+   GEMINI_API_KEY="..."
    ```
 4. **Run the Development Server:**
    ```bash
@@ -163,9 +164,22 @@ Rather than relying on LLMs for final strategy recommendations (which often resu
 
 | Variable | Required | Description | Exposed to Client |
 |---|---|---|---|
-| `OPENAI_API_KEY` | Yes | Valid OpenAI API key for AI pipeline execution. | No (Server-only) |
+| `AI_PROVIDER` | No | `gemini` (default) or `openai`. Switching providers is configuration-only. | No |
+| `GEMINI_API_KEY` | When `AI_PROVIDER=gemini` | Gemini API key from a project without billing. | No (Server-only) |
+| `GEMINI_PRODUCT_MODEL` | No | Product Intelligence model (default `gemini-3.6-flash`). | No |
+| `GEMINI_WEBSITE_MODEL` | No | Screenshot interpretation model (default `gemini-3.6-flash`). | No |
+| `GEMINI_OPPORTUNITY_MODEL` | No | Model that interprets Tavily search results for the Opportunity Feed (default `gemini-3.5-flash-lite`). Gemini Google Search grounding is never used. | No |
+| `GEMINI_FAST_MODEL` | No | Lightweight model (default `gemini-3.5-flash-lite`). | No |
+| `OPENAI_API_KEY` / `OPENAI_BASE_URL` / `OPENAI_MODEL` | When `AI_PROVIDER=openai` | OpenAI-compatible endpoint. | No (Server-only) |
+| `SEARCH_PROVIDER` | No | Search provider for the Opportunity Feed (`tavily`, default). Independent of `AI_PROVIDER`. | No |
+| `TAVILY_API_KEY` | For the Opportunity Feed | Tavily Search API key (free Researcher plan: 1,000 credits/month). | No (Server-only — never `NEXT_PUBLIC_`) |
+| `SEARCH_MONTHLY_CREDIT_BUDGET` | No | App-level monthly ceiling checked against Tavily's own usage figures before every discovery (default `900`). | No |
 
-> **Warning:** Never commit your `.env.local` file or expose your OpenAI API key in client-side code.
+**Opportunity Feed:** three deterministic, basic Tavily searches (1 credit each) run concurrently → Gemini interprets the results, referencing them by id only → every URL is taken from the original Tavily result → deterministic ranking. Before any search, Tavily's authoritative `/usage` is checked against the plan limit, any key limit and `SEARCH_MONTHLY_CREDIT_BUDGET`; if any would be exceeded, if pay-as-you-go usage is non-zero, or if usage can't be verified, no search is sent.
+
+Every Gemini model must be on the free-tier allowlist in `src/lib/ai/providers/gemini-models.ts`; anything else is refused locally before a request is sent. See `.env.local.example` for optional tuning variables.
+
+> **Warning:** Never commit your `.env.local` file or expose API keys in client-side code.
 
 ## 🛡 Performance, Security, and Reliability
 

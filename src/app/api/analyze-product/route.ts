@@ -5,6 +5,7 @@ import {
   ProductIntelligenceSchema,
 } from "@/lib/ai/schemas/product-analysis";
 import { generateStructuredResponse } from "@/lib/ai/client";
+import { httpStatusForAIError, isAIProviderError } from "@/lib/ai/errors";
 import {
   PRODUCT_ANALYSIS_MAX_OUTPUT_TOKENS,
   PRODUCT_ANALYSIS_SYSTEM_PROMPT,
@@ -18,15 +19,11 @@ import type { WebsiteIntelligence } from "@/types/website";
 // POST /api/analyze-product
 //
 // Runtime configuration:
-//   - nodejs: required — the OpenAI SDK uses Node APIs (http, streams, etc.)
-//     that are not available on the Edge runtime. Without this, Vercel will
-//     default to the Edge runtime and the SDK will fail to initialise.
-//   - maxDuration: 120 s — GPT-5.6-Sol (reasoning-class) regularly takes
-//     30-90 s for a structured Product Intelligence call on Azure. Vercel's
-//     default (10 s Hobby / 15 s Pro) kills the function before the AI can
-//     respond, causing the frontend to receive a 502/504 with no JSON body,
-//     which becomes the "unexpected response" error on the client.
-//     120 s > STRUCTURED_RESPONSE_TIMEOUT_MS (90 s) + website analysis headroom.
+//   - nodejs: required — provider adapters, Playwright and Lighthouse use
+//     Node APIs that are not available on the Edge runtime.
+//   - maxDuration: 120 s — a structured Product Intelligence call can take
+//     tens of seconds (provider timeout: 90 s). Vercel's default (10 s Hobby
+//     / 15 s Pro) would kill the function before the AI responds.
 // ---------------------------------------------------------------------------
 
 export const runtime = "nodejs";
@@ -64,7 +61,7 @@ export async function POST(request: NextRequest) {
 
     const input = parsed.data;
 
-    // 3. Build the prompt and call the configured AI provider (OpenAI by default)
+    // 3. Build the prompt and call the configured AI provider (AI_PROVIDER)
     const userPrompt = buildProductAnalysisUserPrompt(input);
 
     let rawResult: unknown;
@@ -75,13 +72,22 @@ export async function POST(request: NextRequest) {
         responseSchema: ProductIntelligenceSchema,
         temperature: 0.3,
         maxOutputTokens: PRODUCT_ANALYSIS_MAX_OUTPUT_TOKENS,
+        operation: "product",
       });
     } catch (err) {
       // Log the error class + message so Vercel function logs show the exact
       // failure category (timed_out, authentication, rate_limit, server_error,
       // connection) without including API keys or full request bodies.
-      const label = err instanceof Error ? `${err.constructor.name}: ${err.message}` : String(err);
+      const label = isAIProviderError(err)
+        ? `${err.provider}/${err.kind}: ${err.message}`
+        : err instanceof Error
+          ? `${err.constructor.name}: ${err.message}`
+          : String(err);
       console.error(`[analyze-product] AI provider error: ${label}`);
+      const headers: Record<string, string> = {};
+      if (isAIProviderError(err) && err.retryAfterSeconds) {
+        headers["Retry-After"] = String(err.retryAfterSeconds);
+      }
       return NextResponse.json(
         {
           success: false,
@@ -89,17 +95,18 @@ export async function POST(request: NextRequest) {
             err instanceof Error && err.message
               ? err.message
               : "AI analysis failed. Please try again later.",
+          ...(isAIProviderError(err) ? { errorKind: err.kind } : {}),
         },
-        { status: 500 }
+        { status: isAIProviderError(err) ? httpStatusForAIError(err) : 500, headers }
       );
     }
 
-    // 4. Validate the OpenAI response with Zod
+    // 4. Validate the AI response with Zod
     const validated = ProductIntelligenceSchema.safeParse(rawResult);
 
     if (!validated.success) {
       console.error(
-        "[analyze-product] OpenAI returned invalid structure:",
+        "[analyze-product] AI returned invalid structure:",
         validated.error.issues
       );
       return NextResponse.json(
@@ -133,7 +140,7 @@ export async function POST(request: NextRequest) {
 
     // 6. Run the deterministic Growth Intelligence Engine (Phase 2 + 3) on
     //    top of the validated Product Intelligence and (if present) Website
-    //    Intelligence. OpenAI never sees this step and never produces the
+    //    Intelligence. The AI never sees this step and never produces the
     //    final channel scores or the highest-leverage decision — it's plain
     //    TypeScript, computed from the signals already returned above.
     let growthIntelligence;

@@ -1,6 +1,14 @@
 import OpenAI, { APIConnectionTimeoutError, APIError } from "openai";
 import { toJSONSchema } from "zod/v4";
 import type { z } from "zod";
+import { AIProviderError, type AIErrorKind } from "../errors";
+import type {
+  AIProviderAdapter,
+  StructuredGenerateOptions,
+  WebSearchCitation,
+  WebSearchOptions,
+  WebSearchResult,
+} from "../types";
 
 // ---------------------------------------------------------------------------
 // OpenAI (via Azure AI Foundry's OpenAI-compatible v1 endpoint) — the default
@@ -14,7 +22,7 @@ import type { z } from "zod";
 // app — never trust raw model output.
 // ---------------------------------------------------------------------------
 
-const OPENAI_MODEL = "gpt-5.6-sol";
+const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5.6-sol";
 const DEFAULT_BASE_URL = "https://epiaus2.services.ai.azure.com/openai/v1";
 
 /** Client-level safety net — catches connection-level hangs and unexpected
@@ -37,14 +45,8 @@ const STRUCTURED_RESPONSE_TIMEOUT_MS = Number(
  * endpoint. Kept at 180 s to cover worst-case multi-round searches. */
 const WEB_SEARCH_TIMEOUT_MS = 180_000;
 
-export interface OpenAiGenerateOptions {
-  systemPrompt: string;
-  userPrompt: string;
-  responseSchema: z.ZodTypeAny;
-  temperature?: number;
-  maxOutputTokens?: number;
-  images?: { mimeType: string; data: string }[];
-}
+/** The OpenAI-compatible options are the app-wide contract; see ../types. */
+export type OpenAiGenerateOptions = StructuredGenerateOptions;
 
 let _client: OpenAI | null = null;
 
@@ -53,8 +55,10 @@ function getClient(): OpenAI {
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    throw new Error(
-      "OPENAI_API_KEY is not set. Add it to .env.local and restart the server."
+    throw new AIProviderError(
+      "configuration",
+      "OPENAI_API_KEY is not set. Add it to .env.local and restart the server.",
+      { provider: "openai" }
     );
   }
 
@@ -104,30 +108,33 @@ function tryParseAndValidate(text: string, schema: z.ZodTypeAny): ParseResult {
 function errorCategory(
   err: unknown,
   timeoutMs?: number
-): { category: string; publicMessage: string } {
+): { category: string; publicMessage: string; kind: AIErrorKind } {
   if (err instanceof APIConnectionTimeoutError) {
     const ms = timeoutMs ?? STRUCTURED_RESPONSE_TIMEOUT_MS;
     return {
       category: "timed_out",
+      kind: "timeout",
       publicMessage: `OpenAI request timed out after ${ms}ms.`,
     };
   }
   if (err instanceof APIError) {
     if (err.status === 401 || err.status === 403)
-      return { category: "authentication", publicMessage: "OpenAI authentication failed." };
+      return { category: "authentication", kind: "authentication", publicMessage: "OpenAI authentication failed." };
     if (err.status === 429)
-      return { category: "rate_limit", publicMessage: "OpenAI rate limit or quota exceeded." };
+      return { category: "rate_limit", kind: "rate_limited", publicMessage: "OpenAI rate limit or quota exceeded." };
     if (err.status !== undefined && err.status >= 500)
       return {
         category: "server_error",
+        kind: "server_error",
         publicMessage: `OpenAI server error (${err.status}).`,
       };
     return {
       category: "request_error",
+      kind: "request_error",
       publicMessage: `OpenAI request failed (${err.status ?? "unknown status"}).`,
     };
   }
-  return { category: "connection", publicMessage: "Could not reach OpenAI." };
+  return { category: "connection", kind: "connection", publicMessage: "Could not reach OpenAI." };
 }
 
 /** @deprecated kept for backward compatibility — prefer errorCategory() */
@@ -170,14 +177,16 @@ async function createResponse(
     );
     outputText = response.output_text;
   } catch (err) {
-    const { category, publicMessage } = errorCategory(err, STRUCTURED_RESPONSE_TIMEOUT_MS);
+    const { category, publicMessage, kind } = errorCategory(err, STRUCTURED_RESPONSE_TIMEOUT_MS);
     // Concise diagnostic — never the full error object (carries request headers).
     console.error(`[openai] request failed: ${category}`);
-    throw new Error(publicMessage);
+    throw new AIProviderError(kind, publicMessage, { provider: "openai" });
   }
 
   if (!outputText) {
-    throw new Error("OpenAI returned an empty response.");
+    throw new AIProviderError("invalid_output", "OpenAI returned an empty response.", {
+      provider: "openai",
+    });
   }
   return outputText;
 }
@@ -236,7 +245,11 @@ export async function generateOpenAiStructuredResponse(
   const repairedAttempt = tryParseAndValidate(repaired, options.responseSchema);
   if (repairedAttempt.success) return repairedAttempt.data;
 
-  throw new Error("OpenAI returned invalid structured output after one repair attempt.");
+  throw new AIProviderError(
+    "invalid_output",
+    "OpenAI returned invalid structured output after one repair attempt.",
+    { provider: "openai" }
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -254,26 +267,11 @@ export async function generateOpenAiStructuredResponse(
 // endpoint before wiring this in.
 // ---------------------------------------------------------------------------
 
-export interface OpenAiWebSearchCitation {
-  url: string;
-  title?: string;
-}
-
-export interface OpenAiWebSearchOptions {
-  systemPrompt: string;
-  userPrompt: string;
-  maxOutputTokens?: number;
-}
-
-export interface OpenAiWebSearchResult {
-  /** Raw text response — the caller extracts/validates JSON from this. */
-  text: string;
-  /** Every URL the web search tool actually found or visited (search result
-   * sources, opened pages, and any inline citations on the final message) —
-   * the ground truth for "is this a real source", independent of whether the
-   * model bothered to cite it inline. */
-  citations: OpenAiWebSearchCitation[];
-}
+export type OpenAiWebSearchCitation = WebSearchCitation;
+export type OpenAiWebSearchOptions = WebSearchOptions;
+/** `citations` = every URL the web search tool actually found or visited
+ * (search result sources, opened pages, and inline citations). */
+export type OpenAiWebSearchResult = WebSearchResult;
 
 export async function generateOpenAiWebSearchResponse(
   options: OpenAiWebSearchOptions
@@ -302,12 +300,14 @@ export async function generateOpenAiWebSearchResponse(
     console.error(`[opportunities] OpenAI web_search failed\nstatus=${status}\nerror=${cat.publicMessage}\nelapsed=${elapsed}ms`);
     // Concise diagnostic only — never the full error object.
     console.error(`[openai] web search request failed: ${cat.publicMessage}`);
-    throw new Error(cat.publicMessage);
+    throw new AIProviderError(cat.kind, cat.publicMessage, { provider: "openai" });
   }
 
   const text = response.output_text;
   if (!text) {
-    throw new Error("OpenAI returned an empty response.");
+    throw new AIProviderError("invalid_output", "OpenAI returned an empty response.", {
+      provider: "openai",
+    });
   }
 
   const citations: OpenAiWebSearchCitation[] = [];
@@ -341,3 +341,20 @@ export async function generateOpenAiWebSearchResponse(
 
   return { text, citations };
 }
+
+// ---------------------------------------------------------------------------
+// Adapter — conforms the OpenAI functions above to the provider-agnostic
+// contract in ../types. Selected with AI_PROVIDER=openai.
+// ---------------------------------------------------------------------------
+
+export const openAiAdapter: AIProviderAdapter = {
+  name: "openai",
+  capabilities: () => ({
+    structuredOutput: true,
+    imageInput: true,
+    webSearch: true,
+    toolCalling: true,
+  }),
+  generateStructured: generateOpenAiStructuredResponse,
+  searchWeb: generateOpenAiWebSearchResponse,
+};

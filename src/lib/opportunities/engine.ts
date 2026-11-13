@@ -1,6 +1,6 @@
 import type { AnalysisResult } from "@/types/analysis";
-import { buildSearchIntents, discoverRawOpportunities } from "./search";
-import { extractDomain, rankOpportunities } from "./rank";
+import { discoverRawOpportunities, extractProductDomain } from "./search";
+import { rankOpportunities } from "./rank";
 import type { Opportunity } from "./schemas";
 
 // ---------------------------------------------------------------------------
@@ -9,13 +9,16 @@ import type { Opportunity } from "./schemas";
 //   AnalysisResult (existing Phase 1+2+3 output)
 //                    │
 //                    ▼
-//         buildSearchIntents()            <- pure, deterministic
+//      buildDiscoveryQueries()  (3 max)    <- pure, deterministic
 //                    │
 //                    ▼
-//   OpenAI + web_search grounding           <- search.ts
+//   Search provider (Tavily, @/lib/search) <- real results, budget-guarded
 //                    │
 //                    ▼
-//        Zod-validated raw opportunities
+//   AI interpretation (@/lib/ai/client)    <- cites result ids only
+//                    │
+//                    ▼
+//   URL resolution from search results     <- unmapped items discarded
 //                    │
 //                    ▼
 //         rankOpportunities()             <- pure, deterministic scoring
@@ -23,23 +26,16 @@ import type { Opportunity } from "./schemas";
 //                    ▼
 //              Opportunity Feed
 //
-// Mirrors the Growth Intelligence Engine's split: OpenAI only ever supplies
-// raw signals, and every score, filter, or ordering decision is plain
-// TypeScript (see AGENTS.md Opportunity Feed §6).
+// The AI only ever supplies raw signals and prose; every URL comes from the
+// search provider, and every score, filter, or ordering decision is plain
+// TypeScript.
 // ---------------------------------------------------------------------------
 
 export async function discoverOpportunities(analysis: AnalysisResult): Promise<Opportunity[]> {
-  const intents = buildSearchIntents(analysis);
-  const { opportunities: raw } = await discoverRawOpportunities(analysis, intents);
-
-  const productDomain = extractProductDomain(analysis);
+  const { opportunities: raw } = await discoverRawOpportunities(analysis);
 
   console.log("[opportunities] ranking started");
-  return rankOpportunities(raw, { productDomain });
-}
-
-function extractProductDomain(analysis: AnalysisResult): string | undefined {
-  const crawl = analysis.websiteIntelligence?.crawl;
-  const url = crawl?.finalUrl ?? crawl?.requestedUrl;
-  return url ? extractDomain(url) : undefined;
+  const ranked = rankOpportunities(raw, { productDomain: extractProductDomain(analysis) });
+  console.log(`[opportunities] ranked ${ranked.length} of ${raw.length} interpreted opportunities`);
+  return ranked;
 }

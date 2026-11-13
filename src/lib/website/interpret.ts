@@ -1,4 +1,4 @@
-import { generateOpenAiStructuredResponse } from "@/lib/ai/providers/openai";
+import { generateStructuredResponse } from "@/lib/ai/client";
 import {
   buildWebsiteAnalysisUserPrompt,
   WEBSITE_ANALYSIS_SYSTEM_PROMPT,
@@ -34,7 +34,8 @@ function extractBase64Data(dataUrl: string | null): { mimeType: string; data: st
 }
 
 /**
- * The single OpenAI call for website analysis — one request carrying both
+ * The single AI call for website analysis (active provider via
+ * AI_PROVIDER) — one request carrying both
  * screenshots and the extracted evidence. Never throws: a failure here just 
  * means no AI interpretation, not a failed analysis.
  */
@@ -57,7 +58,8 @@ export async function interpretWebsite(
   });
 
   try {
-    const raw = await generateOpenAiStructuredResponse({
+    const raw = await generateStructuredResponse({
+      operation: "website",
       systemPrompt: WEBSITE_ANALYSIS_SYSTEM_PROMPT,
       userPrompt,
       responseSchema: WebsiteInterpretationSchema,
@@ -68,14 +70,18 @@ export async function interpretWebsite(
     const validated = WebsiteInterpretationSchema.safeParse(raw);
     if (!validated.success) {
       console.error(
-        "[website] OpenAI returned an invalid interpretation structure:",
+        "[website] AI returned an invalid interpretation structure:",
         validated.error.issues
       );
       return null;
     }
     return validated.data;
   } catch (err) {
-    console.error("[website] OpenAI visual analysis failed:", err);
+    // Message only — the error never carries screenshot data or the key.
+    console.error(
+      "[website] AI visual analysis failed:",
+      err instanceof Error ? err.message : String(err)
+    );
     return null;
   }
 }

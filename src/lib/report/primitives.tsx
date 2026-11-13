@@ -151,7 +151,7 @@ export function Bullets({ t, items }: { t: ReportRenderContext; items: string[] 
 }
 
 /** "MEASURED" vs "AI INTERPRETATION" — the one distinction this whole report
- * is built around. Never omit it next to a number OpenAI produced. */
+ * is built around. Never omit it next to a number the AI produced. */
 export function ProvenanceTag({
   t,
   kind,

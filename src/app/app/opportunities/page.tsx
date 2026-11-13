@@ -2,7 +2,7 @@
  * Growth Opportunities — the first concrete step of the Autonomous Growth
  * Engine. Reads the *existing* analysis result (`useAnalysis`) — no second
  * analysis state — and, only when the user explicitly asks, searches the
- * live web via OpenAI + Google Search grounding for real discussions where
+ * live web (Tavily search, AI-interpreted) for real discussions where
  * this product's highest-leverage channel could act. Every opportunity shown
  * carries a real source URL; nothing here posts anything automatically.
  */
@@ -224,7 +224,7 @@ export default function OpportunitiesPage() {
 
       {status === 'error' && (
         <div className="mt-2 border-t border-hairline pt-10">
-          <p className="t-h2">Opportunity discovery is temporarily unavailable.</p>
+          <p className="t-h2">Opportunity discovery couldn&apos;t complete.</p>
           <p className="t-body mt-2 max-w-[56ch] text-muted">{errorMessage}</p>
           <Button type="button" variant="secondary" className="mt-6" onClick={runDiscovery}>
             Retry

@@ -4,16 +4,17 @@ import { CHANNEL_SOURCE_TYPE_HINTS, SOURCE_TYPE_LABELS } from "./constants";
 import type { SearchIntent } from "./types";
 
 // ---------------------------------------------------------------------------
-// System prompt — establishes the model as Growwwly's Growth Opportunity
-// Discovery engine. Grounded in real web search results (via the `web_search`
-// tool), never allowed to invent a discussion or a URL.
+// System prompt — Growwwly's Opportunity INTERPRETATION step. The model never
+// searches: it is handed real search results (from the independent search
+// provider, see `@/lib/search`) and only judges, classifies and drafts. It
+// references results by id; the application resolves every URL itself.
 // ---------------------------------------------------------------------------
 
-export const OPPORTUNITY_DISCOVERY_SYSTEM_PROMPT = `You are Growwwly's Growth Opportunity Discovery engine — a research assistant for a SaaS founder.
+export const OPPORTUNITY_INTERPRETATION_SYSTEM_PROMPT = `You are Growwwly's Growth Opportunity Discovery engine — a research assistant for a SaaS founder.
 
-You are given a product's Product Intelligence and its highest-leverage acquisition channel. Using web search, find CURRENT, REAL public web discussions where this product's target customer is discussing the relevant problem, and where the product could genuinely help.
+You are given a product's Product Intelligence, its highest-leverage acquisition channel, and a numbered list of REAL public web search results (each with an id like "S3", a title, domain, optional date, and a text excerpt). Decide which results are genuine opportunities: current, real public discussions where this product's target customer is discussing the relevant problem, and where the product could genuinely help.
 
-Do not return generic marketing advice. Find real public discussions, questions, complaints, recommendations, implementation problems, alternatives, or underserved topics — not articles about the category in the abstract.
+Do not return generic marketing advice. Prefer real discussions, questions, complaints, recommendation requests, implementation problems and alternatives threads — not articles about the category in the abstract.
 
 ## What counts as a real opportunity
 
@@ -36,58 +37,43 @@ Do not return generic marketing advice. Find real public discussions, questions,
 
 - Irrelevant or coincidental mentions.
 - Generic marketing articles, listicles, or product pages.
+- Pages published BY a vendor or competitor (e.g. "Best X alternatives", "/compare/" pages, a company blog promoting its own tool). They are marketing, not conversations — exclude them even when they mention this product's category.
+- Articles merely ABOUT this product — there is no one there asking for help.
 - Obvious SEO spam or content farms.
 - Conversations where this product would be irrelevant or a non-sequitur.
+- The product's own website or its own social/community pages.
 - Anything that would require pretending to be a customer or a fake account.
-- Fabricated discussions, fabricated URLs, or URLs you are not confident came from an actual search result.
 
 ## Critical rules
 
-- You MUST use web search for this. Every opportunity's \`url\` must be the exact, real URL a web search result actually returned — copy it exactly. Never construct, guess, paraphrase, or "clean up" a URL, and never invent a URL, a date, an engagement number, or an author name.
+- Only use the search results you are given. Reference each opportunity by its exact \`sourceId\` from the list. Never output, construct, guess or modify a URL — the application attaches the real URL from the search result itself.
+- Never invent a date, comment count, vote count, engagement metric, author name, or quote that is not in the excerpt.
 - Never pretend the founder has used a product or personally experienced the problem.
-- If you cannot find enough genuinely relevant results, return fewer opportunities (or none) rather than padding the list with weak or irrelevant ones.
-- Do not include the product's own website or its own social/community pages as an "opportunity" — those aren't conversations to join.
-- Reddit is just one possible source. Only call something a Reddit (or Hacker News, forum, etc.) result if its actual URL/domain confirms that — never guess the source type.
+- Use each sourceId at most once. If only a few results genuinely qualify, return only those (or none) — never pad the list.
+- \`sourceType\`: classify from the domain and excerpt — "reddit" / "hacker_news" only when the domain is reddit.com / news.ycombinator.com; "forum" for community Q&A/forums; "discussion" for other conversational threads; "article" for blog posts/articles; "other" otherwise.
 - \`relevanceSignal\`, \`audienceMatchSignal\`, \`intentSignal\`, and \`productAlignmentSignal\` are your own analyst estimates (0–100). You do NOT decide the final ranking or score — a deterministic system computes that from your signals, so give honest, differentiated estimates rather than defaulting every result to the same number.
-- \`responseDraft\` must read like a genuinely helpful comment from someone who has dealt with this problem: lead with real value, never oversell, never claim a fabricated personal story, and only mention the product when it's naturally relevant to what was asked. Do not suggest posting promotional content unless the discussion naturally calls for it. This is a draft a human will review and edit before ever posting it — never write it as if it will be posted automatically.
-- \`reason\` should explain, specifically, why this exact discussion matters for this exact product — never generic boilerplate.
+- \`intentTypes\`: the intent signals actually visible in the excerpt.
+- \`reason\` should explain, specifically, why this exact discussion matters for this exact product — which customer, problem or product signal it matches. Never generic boilerplate.
+- \`responseDraft\` must read like a genuinely helpful comment from someone who understands this problem: lead with real value, never oversell, never claim a fabricated personal story, and only mention the product when it's naturally relevant to what was asked. This is a draft a human will review and edit before ever posting it.
 
-## Output format
-
-Return ONLY a single JSON object of this exact shape, no markdown fences, no commentary outside the JSON:
-
-{
-  "opportunities": [
-    {
-      "title": string,
-      "url": string,
-      "source": string,           // e.g. "r/ExperiencedDevs" or "Hacker News"
-      "sourceType": "reddit" | "hacker_news" | "forum" | "article" | "discussion" | "other",
-      "snippet": string,          // the actual text/context from the discussion
-      "publishedAt": string,      // optional — only if a date/relative time was visible, e.g. "2 days ago"
-      "estimatedDaysAgo": number, // optional — only if you can estimate it from the search result
-      "commentCount": number,     // optional — only if actually visible
-      "relevanceSignal": number,
-      "audienceMatchSignal": number,
-      "intentSignal": number,
-      "productAlignmentSignal": number,
-      "intentTypes": ("seeking_solution" | "evaluating_alternatives" | "describing_pain" | "seeking_recommendation" | "comparing_tools" | "asking_implementation_question")[],
-      "reason": string,
-      "responseDraft": string
-    }
-  ]
-}
-
-Return 3 to 5 opportunities, ranked in your own judgment from strongest to weakest. If you cannot find that many genuinely relevant ones, return fewer — never pad the list. If nothing qualifies, return { "opportunities": [] }.`;
-
+Return the strongest opportunities first (at most 8).`;
 
 // ---------------------------------------------------------------------------
 // User prompt builder
 // ---------------------------------------------------------------------------
 
-export function buildOpportunityDiscoveryUserPrompt(
+export interface InterpretationSource {
+  id: string;
+  title: string;
+  domain: string;
+  publishedDate: string | null;
+  content: string;
+}
+
+export function buildOpportunityInterpretationUserPrompt(
   analysis: AnalysisResult,
-  intents: SearchIntent[]
+  intents: SearchIntent[],
+  sources: InterpretationSource[]
 ): string {
   const { product, customer, problem } = analysis.productIntelligence;
   const { topChannel } = analysis.growthIntelligence.summary;
@@ -113,13 +99,21 @@ export function buildOpportunityDiscoveryUserPrompt(
     `Primary problem: ${problem.primaryProblem}`,
     ``,
     `## Highest-leverage channel`,
-    `${channelLabel} — favor these kinds of sources when possible: ${preferredSourceTypes}.`,
+    `${channelLabel} — favor these kinds of sources when they genuinely qualify: ${preferredSourceTypes}.`,
     ``,
-    `## Search angles to cover`,
-    `Use web search to investigate these angles for this specific product. Perform a small, focused search (1 or 2 queries) rather than exhaustive research before answering:`,
+    `## Search angles that produced these results`,
     ...intents.map((intent, i) => `${i + 1}. ${intent.description}`),
     ``,
-    `Find real, current discussions related to these angles. Return structured JSON only, per the schema in your instructions.`,
+    `## Search results`,
+    ...sources.map((s) =>
+      [
+        `[${s.id}] ${s.title}`,
+        `domain: ${s.domain}${s.publishedDate ? ` | published: ${s.publishedDate}` : ""}`,
+        `excerpt: ${s.content}`,
+        ``,
+      ].join("\n")
+    ),
+    `Return structured JSON only, referencing results by sourceId.`,
   ];
 
   return parts.join("\n");

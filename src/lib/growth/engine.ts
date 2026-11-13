@@ -22,10 +22,10 @@ import { computeWebsiteChannelModifier, detectBottleneck, extractWebsiteSignalBa
 // ---------------------------------------------------------------------------
 // The single entry point the API route calls.
 //
-//   OpenAI → Product Intelligence (Phase 1, untouched)
+//   The AI → Product Intelligence (Phase 1, untouched)
 //                    │
 //                    ▼
-//   Website evidence + OpenAI interpretation (Phase 3, optional)
+//   Website evidence + the AI interpretation (Phase 3, optional)
 //                    │
 //                    ▼
 //        computeGrowthIntelligence()      <- this file
@@ -34,7 +34,7 @@ import { computeWebsiteChannelModifier, detectBottleneck, extractWebsiteSignalBa
 //         Growth Intelligence (Phase 2 + 3)
 //
 // Pure function: same inputs in, same output out, every time. No network
-// calls, no randomness, no OpenAI involvement — `websiteIntelligence` is
+// calls, no randomness, no AI involvement — `websiteIntelligence` is
 // already-computed evidence + interpretation by the time it reaches here.
 // ---------------------------------------------------------------------------
 

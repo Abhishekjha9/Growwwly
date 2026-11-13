@@ -12,8 +12,8 @@ import { OpportunitySchema } from "./schemas";
 import type { SourceType } from "./types";
 
 // ---------------------------------------------------------------------------
-// Pure, deterministic ranking math. No randomness, no I/O, no OpenAI
-// involvement — same contract as `@/lib/growth/scoring`. OpenAI supplies raw
+// Pure, deterministic ranking math. No randomness, no I/O, no AI
+// involvement — same contract as `@/lib/growth/scoring`. The AI supplies raw
 // per-opportunity signals only; every number and ordering decision below is
 // plain TypeScript.
 // ---------------------------------------------------------------------------
@@ -22,7 +22,7 @@ export function clampScore(n: number): number {
   return Math.min(100, Math.max(0, Math.round(n)));
 }
 
-/** Known, unambiguous domains override OpenAI's own `sourceType`
+/** Known, unambiguous domains override the AI's own `sourceType`
  * classification — a structural fact code can verify beats a model guess. */
 const DOMAIN_SOURCE_TYPE_OVERRIDES: Array<{ pattern: RegExp; sourceType: SourceType }> = [
   { pattern: /(^|\.)reddit\.com$/i, sourceType: "reddit" },

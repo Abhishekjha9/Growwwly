@@ -1,15 +1,26 @@
+import { z } from "zod";
+
 import type { AnalysisResult } from "@/types/analysis";
+import { generateStructuredResponse } from "@/lib/ai/client";
 import {
-  generateOpenAiWebSearchResponse,
-} from "@/lib/ai/providers/openai";
+  canonicalizeUrl as canonicalizeForLookup,
+  searchMany,
+  type SearchQuery,
+  type SearchResult,
+} from "@/lib/search";
 import {
-  OPPORTUNITY_DISCOVERY_SYSTEM_PROMPT,
-  buildOpportunityDiscoveryUserPrompt,
+  OPPORTUNITY_INTERPRETATION_SYSTEM_PROMPT,
+  buildOpportunityInterpretationUserPrompt,
 } from "./prompts";
-import { RawOpportunitySchema, type RawOpportunity } from "./schemas";
+import {
+  IntentSignalTypeSchema,
+  RawOpportunitySchema,
+  SourceTypeSchema,
+  type RawOpportunity,
+} from "./schemas";
 import { MAX_RAW_OPPORTUNITIES } from "./constants";
-import { normalizeUrl, extractDomain } from "./rank";
-import type { SearchIntent } from "./types";
+import { extractDomain } from "./rank";
+import type { SearchAngle, SearchIntent } from "./types";
 
 // ---------------------------------------------------------------------------
 // Search intent construction — pure, deterministic, no I/O. Builds the
@@ -65,128 +76,339 @@ export function buildSearchIntents(analysis: AnalysisResult): SearchIntent[] {
 }
 
 // ---------------------------------------------------------------------------
-// Web discovery call (OpenAI web_search) — grounded in real URLs.
+// Discovery queries — exactly THREE targeted searches per discovery, built
+// deterministically from Product + Growth Intelligence. The AI never decides
+// what or how often to search.
+//
+//   1. problem_discussion      → public communities (Reddit, HN, Q&A forums)
+//   2. seeking_recommendation  → public communities
+//   3. channel-dependent angle → OPEN web, so other public sources stay
+//      discoverable: comparisons for community/referral-led products,
+//      pain/complaints otherwise.
+// Verified 2026-11-14 with a real run: open-web queries for a developer
+// product return mostly vendor "X alternatives" pages, so only one of the
+// three searches is open; the other two target where conversations live.
 // ---------------------------------------------------------------------------
+
+export const MAX_DISCOVERY_SEARCHES = 3;
+
+export const COMMUNITY_DOMAINS = [
+  "reddit.com",
+  "news.ycombinator.com",
+  "indiehackers.com",
+  "stackoverflow.com",
+  "stackexchange.com",
+  "lobste.rs",
+];
+
+/** Vendor review / listicle aggregators — not conversations to join. */
+const NON_CONVERSATION_DOMAINS = [
+  "g2.com",
+  "capterra.com",
+  "getapp.com",
+  "softwareadvice.com",
+  "trustradius.com",
+  "alternativeto.net",
+  "saasworthy.com",
+];
+
+export interface DiscoveryQuery extends SearchQuery {
+  intent: SearchIntent;
+}
+
+const TRAILING_STOPWORDS = new Set([
+  "a", "an", "and", "or", "the", "to", "of", "for", "via", "with", "in", "on", "by", "using", "is", "are",
+]);
+
+/** First clause (up to `,;.:` or an em dash), at most `maxWords` words, with
+ * dangling stop-words trimmed. Analysis text is written like marketing copy;
+ * searches work far better with the short phrase people actually type. */
+function shorten(text: string, maxWords: number): string {
+  const clause = text.split(/[,;.:—–]|\s-\s/)[0] ?? text;
+  const words = clause
+    .replace(/[“”"()[\]{}]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .slice(0, maxWords);
+  while (words.length > 1 && TRAILING_STOPWORDS.has(words[words.length - 1].toLowerCase())) words.pop();
+  return words.join(" ").replace(/[.,;:!?-]+$/, "");
+}
+
+/** "Developer Infrastructure / Email API" → "Email API". */
+function coreCategory(category: string): string {
+  const parts = category.split(/[/|>]/).map((p) => p.trim()).filter(Boolean);
+  return parts[parts.length - 1] ?? category;
+}
+
+function intentFor(intents: SearchIntent[], angle: SearchAngle): SearchIntent {
+  return intents.find((i) => i.angle === angle) ?? { angle, description: angle };
+}
+
+export function buildDiscoveryQueries(analysis: AnalysisResult): DiscoveryQuery[] {
+  const { product, problem } = analysis.productIntelligence;
+  const { topChannel } = analysis.growthIntelligence.summary;
+  const intents = buildSearchIntents(analysis);
+  const productDomain = extractProductDomain(analysis);
+
+  const category = shorten(coreCategory(product.category), 5);
+  const problemText = shorten(problem.primaryProblem, 10);
+  const useCase = shorten(product.primaryUseCase, 8);
+  const exclude = [...(productDomain ? [productDomain] : [])];
+  const communityLed = topChannel === "communities" || topChannel === "referrals";
+
+  const queries: DiscoveryQuery[] = [
+    {
+      intent: intentFor(intents, "problem_discussion"),
+      label: "problem_discussion",
+      query: problemText,
+      includeDomains: COMMUNITY_DOMAINS,
+      excludeDomains: exclude.length ? exclude : undefined,
+      timeRange: "year",
+    },
+    {
+      intent: intentFor(intents, "seeking_recommendation"),
+      label: "seeking_recommendation",
+      query: `what ${category} do you recommend for ${useCase}`,
+      includeDomains: COMMUNITY_DOMAINS,
+      excludeDomains: exclude.length ? exclude : undefined,
+      timeRange: "year",
+    },
+    communityLed
+      ? {
+          intent: intentFor(intents, "comparison"),
+          label: "comparison",
+          query: `${category} alternatives which one do you use and why`,
+          excludeDomains: [...exclude, ...NON_CONVERSATION_DOMAINS],
+          timeRange: "year",
+        }
+      : {
+          intent: intentFor(intents, "pain_complaint"),
+          label: "pain_complaint",
+          query: `frustrated with my ${category} ${shorten(problem.primaryProblem, 6)}`,
+          excludeDomains: [...exclude, ...NON_CONVERSATION_DOMAINS],
+          timeRange: "year",
+        },
+  ];
+
+  return queries.slice(0, MAX_DISCOVERY_SEARCHES);
+}
+
+// ---------------------------------------------------------------------------
+// AI interpretation of real search results. The model only ever sees result
+// ids — its schema has no URL field — and every fact shown to the user
+// (title, URL, excerpt, date) comes from the search result itself.
+// ---------------------------------------------------------------------------
+
+const SignalSchema = z.number().int().min(0).max(100);
+
+function interpretationSchemaFor(ids: string[]) {
+  return z.object({
+    opportunities: z
+      .array(
+        z.object({
+          sourceId: z.enum(ids as [string, ...string[]]),
+          sourceType: SourceTypeSchema,
+          relevanceSignal: SignalSchema,
+          audienceMatchSignal: SignalSchema,
+          intentSignal: SignalSchema,
+          productAlignmentSignal: SignalSchema,
+          intentTypes: z.array(IntentSignalTypeSchema).max(6),
+          reason: z.string().min(1).max(600),
+          responseDraft: z.string().min(1).max(1500),
+        })
+      ),
+  });
+}
+
+const MAX_INTERPRETED_OPPORTUNITIES = 8;
+
+/** Lenient per-item parse used when mapping — tolerates a provider that
+ * returns a `url` instead of (or as well as) a `sourceId`. */
+const InterpretedItemSchema = z.object({
+  sourceId: z.string().optional(),
+  url: z.string().optional(),
+  sourceType: SourceTypeSchema,
+  relevanceSignal: SignalSchema,
+  audienceMatchSignal: SignalSchema,
+  intentSignal: SignalSchema,
+  productAlignmentSignal: SignalSchema,
+  intentTypes: z.array(IntentSignalTypeSchema).max(6).default([]),
+  reason: z.string().min(1).max(600),
+  responseDraft: z.string().min(1).max(1500),
+});
+
+/** Human-readable venue derived from the URL — never from model text. */
+export function sourceLabel(url: string): string {
+  const domain = extractDomain(url);
+  if (/(^|\.)reddit\.com$/.test(domain)) {
+    const sub = /\/r\/([^/]+)/i.exec(new URL(url).pathname)?.[1];
+    return sub ? `r/${sub}` : "Reddit";
+  }
+  if (domain === "news.ycombinator.com") return "Hacker News";
+  return domain || "Web";
+}
+
+function ageInDays(published: string | null, now: number): number | undefined {
+  if (!published) return undefined;
+  const t = Date.parse(published);
+  if (Number.isNaN(t)) return undefined;
+  return Math.min(3650, Math.max(0, Math.floor((now - t) / 86_400_000)));
+}
+
+export interface MappingStats {
+  received: number;
+  unknownSource: number;
+  duplicate: number;
+  invalid: number;
+}
+
+/**
+ * Turns interpreted items into RawOpportunity objects. Each item must map to
+ * a real search result by `sourceId` (or, failing that, by canonical URL);
+ * the final URL/title/snippet/date are ALWAYS the search result's own. Items
+ * that cannot be mapped are discarded, as are repeat references to a result
+ * already used. Exported for tests.
+ */
+export function mapInterpretationToRawOpportunities(
+  items: unknown[],
+  results: SearchResult[],
+  now: number = Date.now()
+): { opportunities: RawOpportunity[]; stats: MappingStats } {
+  const byId = new Map(results.map((r) => [r.id, r]));
+  const byCanonical = new Map(results.map((r) => [r.canonicalUrl, r]));
+  const used = new Set<string>();
+  const stats: MappingStats = { received: items.length, unknownSource: 0, duplicate: 0, invalid: 0 };
+  const opportunities: RawOpportunity[] = [];
+
+  for (const item of items.slice(0, MAX_RAW_OPPORTUNITIES)) {
+    const parsed = InterpretedItemSchema.safeParse(item);
+    if (!parsed.success) {
+      stats.invalid += 1;
+      continue;
+    }
+    const it = parsed.data;
+    let source = it.sourceId ? byId.get(it.sourceId.trim()) : undefined;
+    if (!source && it.url) source = byCanonical.get(canonicalizeForLookup(it.url));
+    if (!source) {
+      stats.unknownSource += 1;
+      continue;
+    }
+    if (used.has(source.id)) {
+      stats.duplicate += 1;
+      continue;
+    }
+
+    const days = ageInDays(source.publishedDate, now);
+    const candidate = RawOpportunitySchema.safeParse({
+      title: source.title,
+      url: source.url,
+      source: sourceLabel(source.url),
+      sourceType: it.sourceType,
+      snippet: source.content.slice(0, 800),
+      publishedAt: source.publishedDate ? source.publishedDate.slice(0, 60) : undefined,
+      estimatedDaysAgo: days,
+      relevanceSignal: it.relevanceSignal,
+      audienceMatchSignal: it.audienceMatchSignal,
+      intentSignal: it.intentSignal,
+      productAlignmentSignal: it.productAlignmentSignal,
+      intentTypes: it.intentTypes,
+      reason: it.reason,
+      responseDraft: it.responseDraft,
+    });
+    if (!candidate.success) {
+      stats.invalid += 1;
+      continue;
+    }
+    used.add(source.id);
+    opportunities.push(candidate.data);
+  }
+  return { opportunities, stats };
+}
 
 export interface RawDiscoveryResult {
   opportunities: RawOpportunity[];
-  groundingSources: { url: string; title?: string }[];
+  search: {
+    requests: number;
+    credits: number;
+    latencyMs: number;
+    results: number;
+    failures: { label?: string; kind: string }[];
+  };
+  interpretation: {
+    latencyMs: number;
+    stats: MappingStats | null;
+  };
 }
 
-function stripJsonFences(text: string): string {
-  const trimmed = text.trim();
-  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
-  return fenced ? fenced[1] : trimmed;
-}
+export async function discoverRawOpportunities(analysis: AnalysisResult): Promise<RawDiscoveryResult> {
+  const queries = buildDiscoveryQueries(analysis);
+  console.log(`[opportunities] ${queries.length} discovery searches: ${queries.map((q) => q.label).join(", ")}`);
 
-function normalizeGroundingUri(uri: string | null | undefined): string {
-  if (!uri) return "";
-  return normalizeUrl(uri);
-}
+  const batch = await searchMany(queries);
+  const searchInfo = {
+    requests: batch.requests,
+    credits: batch.credits,
+    latencyMs: batch.latencyMs,
+    results: batch.results.length,
+    failures: batch.failures,
+  };
 
-export async function discoverRawOpportunities(
-  analysis: AnalysisResult,
-  intents: SearchIntent[]
-): Promise<RawDiscoveryResult> {
-  const topIntents = intents.slice(0, 3);
-  const userPrompt = buildOpportunityDiscoveryUserPrompt(analysis, topIntents);
-
-  console.log(`[opportunities] generated ${intents.length} search intents`);
-  if (process.env.NODE_ENV !== "production") {
-    for (const intent of intents) {
-      console.log(`[opportunities]   · ${intent.angle}: ${intent.description}`);
-    }
+  if (batch.results.length === 0) {
+    console.log("[opportunities] search returned no results — nothing to interpret.");
+    return { opportunities: [], search: searchInfo, interpretation: { latencyMs: 0, stats: null } };
   }
 
-  console.log("[opportunities] search intents generated");
-  console.log("[opportunities] OpenAI web_search started");
-  const webSearchStart = Date.now();
-
-  const { text, citations: groundingSources } =
-    await generateOpenAiWebSearchResponse({
-      systemPrompt: OPPORTUNITY_DISCOVERY_SYSTEM_PROMPT,
-      userPrompt,
-    });
-
-  console.log(`[opportunities] OpenAI web_search finished: ${Date.now() - webSearchStart}ms`);
-
-  if (process.env.NODE_ENV !== "production") {
-    console.log(`[opportunities] grounding sources returned: ${groundingSources.length}`);
-  }
-
-  console.log("[opportunities] response parsing started");
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(stripJsonFences(text));
-  } catch {
-    throw new Error("OpenAI returned invalid JSON for opportunity discovery.");
-  }
-
-  const candidateList =
-    parsed &&
-    typeof parsed === "object" &&
-    Array.isArray((parsed as { opportunities?: unknown }).opportunities)
-      ? (parsed as { opportunities: unknown[] }).opportunities
-      : [];
-
-  console.log("[opportunities] URL verification started");
-  const knownNormUrls = new Set(
-    groundingSources.map((s) => normalizeGroundingUri(s.url)).filter(Boolean)
+  const userPrompt = buildOpportunityInterpretationUserPrompt(
+    analysis,
+    queries.map((q) => q.intent),
+    batch.results.map((r) => ({
+      id: r.id,
+      title: r.title,
+      domain: r.domain,
+      publishedDate: r.publishedDate,
+      content: r.content,
+    }))
   );
 
-  const knownDomains = new Set(
-    groundingSources
-      .map((s) => (s.url ? extractDomain(s.url) : ""))
-      .filter(Boolean)
-  );
+  const started = Date.now();
+  const interpreted = (await generateStructuredResponse({
+    systemPrompt: OPPORTUNITY_INTERPRETATION_SYSTEM_PROMPT,
+    userPrompt,
+    responseSchema: interpretationSchemaFor(batch.results.map((r) => r.id)),
+    temperature: 0.4,
+    maxOutputTokens: 6000,
+    operation: "opportunity",
+  })) as { opportunities?: unknown };
+  const interpretationLatency = Date.now() - started;
 
-  const noGroundingSources = groundingSources.length === 0;
-  if (noGroundingSources) {
-    console.warn(
-      "[opportunities] OpenAI returned no grounding sources — accepting candidates without URL verification."
-    );
-  }
+  // Cap enforced in code (not in the schema) so one extra item can't fail
+  // the whole response; the prompt already asks for at most 8.
+  const items = Array.isArray(interpreted?.opportunities)
+    ? interpreted.opportunities.slice(0, MAX_INTERPRETED_OPPORTUNITIES)
+    : [];
+  const { opportunities, stats } = mapInterpretationToRawOpportunities(items, batch.results);
 
-  const opportunities: RawOpportunity[] = [];
-  const sourceDistribution: Record<string, number> = {};
-
-  for (const candidate of candidateList.slice(0, MAX_RAW_OPPORTUNITIES)) {
-    const validated = RawOpportunitySchema.safeParse(candidate);
-    if (!validated.success) {
-      console.warn(
-        "[opportunities] Dropped malformed opportunity:",
-        validated.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`)
-      );
-      continue;
+  if (process.env.NODE_ENV !== "production") {
+    const picked = new Set(opportunities.map((o) => o.url));
+    for (const r of batch.results) {
+      console.log(`[opportunities]   ${picked.has(r.url) ? "✓" : "·"} ${r.id} [${r.queryLabel}] ${r.domain} — ${r.title.slice(0, 90)}`);
     }
-
-    const opp = validated.data;
-    const normUrl = normalizeUrl(opp.url);
-    const domain = extractDomain(opp.url);
-
-    const urlVerified =
-      noGroundingSources ||
-      knownNormUrls.has(normUrl) ||
-      (domain !== "" && knownDomains.has(domain));
-
-    if (!urlVerified) {
-      console.warn(
-        `[opportunities] Dropped opportunity whose URL/domain wasn't confirmed by grounding: ${opp.url}`
-      );
-      continue;
-    }
-
-    opportunities.push(opp);
-    const st: string = opp.sourceType ?? "other";
-    sourceDistribution[st] = (sourceDistribution[st] ?? 0) + 1;
   }
-
-  const distStr = Object.entries(sourceDistribution)
-    .map(([k, v]) => `${k}=${v}`)
-    .join(", ");
   console.log(
-    `[opportunities] validated ${opportunities.length} opportunities | source distribution: ${distStr || "none"}`
+    `[opportunities] interpretation: ${stats.received} proposed, ${opportunities.length} mapped to real results ` +
+      `(unknown=${stats.unknownSource} duplicate=${stats.duplicate} invalid=${stats.invalid}) in ${interpretationLatency}ms`
   );
 
-  return { opportunities, groundingSources };
+  return {
+    opportunities,
+    search: searchInfo,
+    interpretation: { latencyMs: interpretationLatency, stats },
+  };
+}
+
+export function extractProductDomain(analysis: AnalysisResult): string | undefined {
+  const crawl = analysis.websiteIntelligence?.crawl;
+  const url = crawl?.finalUrl ?? crawl?.requestedUrl;
+  return url ? extractDomain(url) : undefined;
 }

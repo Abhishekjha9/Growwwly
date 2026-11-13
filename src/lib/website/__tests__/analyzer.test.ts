@@ -12,7 +12,7 @@ vi.mock("../fetch", () => ({ fetchHtml: (...args: unknown[]) => fetchHtmlMock(..
 vi.mock("../extract", () => ({ extractSeoEvidence: (...args: unknown[]) => extractSeoEvidenceMock(...args) }));
 vi.mock("../browser", () => ({ captureScreenshots: (...args: unknown[]) => captureScreenshotsMock(...args) }));
 vi.mock("../lighthouse", () => ({ runLighthouseAudit: (...args: unknown[]) => runLighthouseAuditMock(...args) }));
-vi.mock("../openai", () => ({ interpretWebsite: (...args: unknown[]) => interpretWebsiteMock(...args) }));
+vi.mock("../interpret", () => ({ interpretWebsite: (...args: unknown[]) => interpretWebsiteMock(...args) }));
 
 const { analyzeWebsite } = await import("../analyzer");
 
